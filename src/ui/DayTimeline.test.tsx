@@ -178,7 +178,7 @@ describe('DayTimeline behavior (tested via the DOM, never internals)', () => {
       stop('b', 1, { name: 'Beta', durationMin: 30 }),
     ]);
     render(<DayTimeline dayId={day.id} />);
-    const leg = (await screen.findByLabelText('Drive after (min) — Alpha')) as HTMLInputElement;
+    const leg = (await screen.findByLabelText('Drive to next stop (min) — Alpha')) as HTMLInputElement;
 
     // the user typed two digits; wait for that commit to land...
     fireEvent.focus(leg);
@@ -202,7 +202,7 @@ describe('DayTimeline behavior (tested via the DOM, never internals)', () => {
     ]);
     const user = userEvent.setup();
     render(<DayTimeline dayId={day.id} />);
-    const leg = (await screen.findByLabelText('Drive after (min) — Alpha')) as HTMLInputElement;
+    const leg = (await screen.findByLabelText('Drive to next stop (min) — Alpha')) as HTMLInputElement;
 
     await user.clear(leg);
     await user.type(leg, '333');

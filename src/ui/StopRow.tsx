@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { dispatch } from '../store/ops';
 import { formatRange, formatHM, parseHM } from '../domain/time';
 import { wazeUrl } from '../domain/waze';
+import { NumberField } from './NumberField';
 import type { ScheduledStop } from '../domain/schedule';
 import type { Stop } from '../domain/types';
 
@@ -59,31 +60,21 @@ export function StopRow({ stop, scheduled, isFirst, isLast, onMoveUp, onMoveDown
           <div className="stop-fields">
             <label>
               {t('durationMin')}
-              <input
-                type="number"
-                min={0}
-                aria-label={`${t('durationMin')} — ${stop.name}`}
+              <NumberField
                 value={stop.durationMin}
-                onChange={(e) =>
-                  updateStop(
-                    { durationMin: Math.max(0, Number(e.target.value)) },
-                    { durationMin: stop.durationMin },
-                  )
-                }
+                ariaLabel={`${t('durationMin')} — ${stop.name}`}
+                onCommit={(v) => updateStop({ durationMin: v }, { durationMin: stop.durationMin })}
               />
             </label>
             {!isLast && (
               <label>
                 {t('legMin')}
-                <input
-                  type="number"
-                  min={0}
-                  aria-label={`${t('legMin')} — ${stop.name}`}
+                <NumberField
                   value={stop.legAfterMin ?? 0}
-                  onChange={(e) => {
-                    const v = Math.max(0, Number(e.target.value));
-                    updateStop({ legAfterMin: v > 0 ? v : null }, { legAfterMin: stop.legAfterMin });
-                  }}
+                  ariaLabel={`${t('legMin')} — ${stop.name}`}
+                  onCommit={(v) =>
+                    updateStop({ legAfterMin: v > 0 ? v : null }, { legAfterMin: stop.legAfterMin })
+                  }
                 />
               </label>
             )}
