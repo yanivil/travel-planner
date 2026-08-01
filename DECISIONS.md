@@ -130,3 +130,8 @@ Every significant product or technical decision gets an entry here, **in the sam
 **Accepted risk:** historical commits expose the owner's personal email (standard git metadata); history rewrite rejected — disruption outweighs benefit; future commits may use the GitHub noreply address at the owner's discretion.
 **Deferred:** CSP to M1 (endpoints unknown until routing/tiles/weather land); the full server-side threat model remains gated on M2 (D-022).
 **Revisit when:** M1 introduces external APIs (add CSP, extend headers) and at the M2 security gate.
+
+### D-025 · 2026-08-01 · Anchor semantics: pinned starts are authoritative; lateness is flagged, never propagated
+**Decision:** an anchored stop always starts at its `anchorStartMin` — the schedule renders the *plan's intent*. Early chain arrival becomes visible `slackBeforeMin` (idle wait); impossible arrival becomes `lateByMin`, surfaced as a warning chip (and, from the constraint engine in #14, a conflict). Downstream stops chain from the anchor's planned end. Floaters behave exactly as in M0 (verified by property test).
+**Why:** a 13:00 reservation does not move because traffic was bad — silently shifting it would hide exactly the mistake the product exists to catch. The engine's job is to flag; the human's (later, quick fixes') job is to resolve.
+**Revisit when:** the auto-solver ("make this day work") needs to propose anchor changes explicitly.

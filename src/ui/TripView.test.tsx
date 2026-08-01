@@ -19,7 +19,7 @@ describe('TripView', () => {
       { id: 'd1', tripId: 'trip-1', index: 0, title: 'Thursday', startMin: 480, zone: 'Asia/Jerusalem' },
       { id: 'd2', tripId: 'trip-1', index: 1, title: 'Friday', startMin: 480, zone: 'Asia/Jerusalem' },
     ]);
-    await db.stops.add({ id: 's1', dayId: 'd1', index: 0, name: 'Banias', kind: 'activity', durationMin: 120, legAfterMin: null });
+    await db.stops.add({ id: 's1', dayId: 'd1', index: 0, name: 'Banias', kind: 'activity', durationMin: 120, legAfterMin: null, anchorStartMin: null });
 
     render(<TripView tripId="trip-1" onBack={() => {}} />);
 
@@ -33,7 +33,7 @@ describe('TripView', () => {
       { id: 'd1', tripId: 'trip-1', index: 0, title: 'Thursday', startMin: 480, zone: 'Asia/Jerusalem' },
       { id: 'd2', tripId: 'trip-1', index: 1, title: 'Friday', startMin: 540, zone: 'Asia/Jerusalem' },
     ]);
-    await db.stops.add({ id: 's2', dayId: 'd2', index: 0, name: 'Timna', kind: 'activity', durationMin: 60, legAfterMin: null });
+    await db.stops.add({ id: 's2', dayId: 'd2', index: 0, name: 'Timna', kind: 'activity', durationMin: 60, legAfterMin: null, anchorStartMin: null });
     const user = userEvent.setup();
     render(<TripView tripId="trip-1" onBack={() => {}} />);
 

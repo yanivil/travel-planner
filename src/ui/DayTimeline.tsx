@@ -69,6 +69,7 @@ export function DayTimeline({ dayId }: { dayId: string }) {
         kind: newKind,
         durationMin: Math.max(0, newDuration),
         legAfterMin: newLeg > 0 ? newLeg : null,
+        anchorStartMin: null,
         wazeQuery: newWaze.trim() || undefined,
       },
     });

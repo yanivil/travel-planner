@@ -27,6 +27,8 @@ export interface Stop {
   kind: StopKind;
   durationMin: number;
   legAfterMin: number | null; // manual drive minutes to the NEXT stop (M0; auto legs are M1)
+  // D-025: a non-null value pins the start (reservation/tour); floaters carry null.
+  anchorStartMin: number | null;
   wazeQuery?: string;
   note?: string;
 }

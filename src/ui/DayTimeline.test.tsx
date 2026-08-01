@@ -25,6 +25,7 @@ function stop(id: string, index: number, patch: Partial<Stop> = {}): Stop {
     kind: 'activity',
     durationMin: 60,
     legAfterMin: null,
+    anchorStartMin: null,
     ...patch,
   };
 }
@@ -135,6 +136,42 @@ describe('DayTimeline behavior (tested via the DOM, never internals)', () => {
     fireEvent.change(screen.getByLabelText(/Day start/), { target: { value: '09:30' } });
 
     expect(await screen.findByText('09:30–10:30')).toBeInTheDocument();
+  });
+
+  test('pinning a stop then moving the pin later shows slack and pins the start (D-025)', async () => {
+    await db.stops.bulkAdd([
+      stop('a', 0, { name: 'Drive', durationMin: 60 }),
+      stop('b', 1, { name: 'Lunch', durationMin: 60 }),
+    ]);
+    const user = userEvent.setup();
+    render(<DayTimeline dayId={day.id} />);
+    await screen.findByText('09:00–10:00');
+
+    await user.click(screen.getByRole('button', { name: 'Pin time: Lunch' }));
+    fireEvent.change(await screen.findByLabelText('Pinned start — Lunch'), {
+      target: { value: '09:45' },
+    });
+
+    expect(await screen.findByText('09:45–10:45')).toBeInTheDocument();
+    expect(screen.getByText(/45 min wait/)).toBeInTheDocument();
+  });
+
+  test('pinning earlier than the chain arrival flags lateness, never shifts silently', async () => {
+    await db.stops.bulkAdd([
+      stop('a', 0, { name: 'Drive', durationMin: 60 }),
+      stop('b', 1, { name: 'Tour', durationMin: 90 }),
+    ]);
+    const user = userEvent.setup();
+    render(<DayTimeline dayId={day.id} />);
+    await screen.findByText('09:00–10:30');
+
+    await user.click(screen.getByRole('button', { name: 'Pin time: Tour' }));
+    fireEvent.change(await screen.findByLabelText('Pinned start — Tour'), {
+      target: { value: '08:30' },
+    });
+
+    expect(await screen.findByText('08:30–10:00')).toBeInTheDocument();
+    expect(screen.getByText(/Late by 30 min/)).toBeInTheDocument();
   });
 
   test('renders Hebrew with RTL document direction (component-level RTL assertion)', async () => {

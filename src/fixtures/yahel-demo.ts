@@ -93,6 +93,7 @@ export async function loadDemoTrip(target: TiyulDB = db): Promise<string> {
         kind: demoStop.kind,
         durationMin: demoStop.durationMin,
         legAfterMin: demoStop.legAfterMin ?? null,
+        anchorStartMin: null,
         wazeQuery: demoStop.wazeQuery,
       });
     });

@@ -46,7 +46,7 @@ describe('TripsList', () => {
     const user = userEvent.setup();
     await db.trips.add({ id: 'trip-1', name: 'Doomed', createdAt: '2026-08-01T00:00:00.000Z' });
     await db.days.add({ id: 'd1', tripId: 'trip-1', index: 0, title: 'Day 1', startMin: 480, zone: 'Asia/Jerusalem' });
-    await db.stops.add({ id: 's1', dayId: 'd1', index: 0, name: 'X', kind: 'activity', durationMin: 60, legAfterMin: null });
+    await db.stops.add({ id: 's1', dayId: 'd1', index: 0, name: 'X', kind: 'activity', durationMin: 60, legAfterMin: null, anchorStartMin: null });
 
     render(<TripsList onOpen={() => {}} />);
     await user.click(await screen.findByRole('button', { name: 'Delete' }));

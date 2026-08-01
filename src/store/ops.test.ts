@@ -22,6 +22,7 @@ function stop(id: string, index: number, patch: Partial<Stop> = {}): Stop {
     kind: 'activity',
     durationMin: 60,
     legAfterMin: null,
+    anchorStartMin: null,
     ...patch,
   };
 }
