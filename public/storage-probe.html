@@ -1,0 +1,113 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tiyul storage probe (spike #12)</title>
+    <style>
+      body { margin: 0; padding: 12px; font-family: ui-monospace, Menlo, monospace; background: #101d24; color: #e9e6db; }
+      h1 { font-size: 16px; }
+      pre { font-size: 14px; white-space: pre-wrap; word-break: break-all; }
+      .ok { color: #6fae7c; } .bad { color: #e0645a; } .warn { color: #d99c3f; }
+      button { font: inherit; padding: 8px 14px; border-radius: 8px; border: 1px solid #2a4450; background: #16262f; color: inherit; }
+    </style>
+  </head>
+  <body>
+    <h1>Tiyul storage probe — spike #12 (temporary diagnostic page, no data leaves this device)</h1>
+    <pre id="out">starting…</pre>
+    <button id="fill">Run 1 GB fill test</button>
+    <pre id="fillout"></pre>
+    <script>
+      const out = document.getElementById('out');
+      const fillout = document.getElementById('fillout');
+      const line = (el, msg, cls) => { const d = document.createElement('div'); if (cls) d.className = cls; d.textContent = msg; el.appendChild(d); };
+      const fmt = (b) => b == null ? 'n/a' : (b / 1e6).toFixed(0) + ' MB';
+
+      async function workerSyncHandleTest() {
+        return new Promise((resolve) => {
+          const code = `onmessage = async () => { try {
+            const root = await navigator.storage.getDirectory();
+            const fh = await root.getFileHandle('probe-sync.bin', { create: true });
+            const h = await fh.createSyncAccessHandle();
+            h.write(new Uint8Array(1024)); h.flush(); h.close();
+            postMessage('ok');
+          } catch (e) { postMessage('fail: ' + e.message); } };`;
+          const w = new Worker(URL.createObjectURL(new Blob([code], { type: 'text/javascript' })));
+          const t = setTimeout(() => resolve('timeout'), 4000);
+          w.onmessage = (e) => { clearTimeout(t); resolve(e.data); };
+          w.onerror = (e) => { clearTimeout(t); resolve('worker error: ' + e.message); };
+          w.postMessage(0);
+        });
+      }
+
+      async function main() {
+        out.textContent = '';
+        line(out, 'UA: ' + navigator.userAgent);
+        line(out, 'display-mode standalone (installed): ' + matchMedia('(display-mode: standalone)').matches, 'warn');
+
+        const est0 = await navigator.storage?.estimate?.().catch(() => null);
+        line(out, `estimate BEFORE persist: usage=${fmt(est0?.usage)} quota=${fmt(est0?.quota)}`);
+
+        const persisted0 = await navigator.storage?.persisted?.().catch(() => 'n/a');
+        const persistResult = await navigator.storage?.persist?.().catch((e) => 'err: ' + e.message);
+        const persisted1 = await navigator.storage?.persisted?.().catch(() => 'n/a');
+        line(out, `persisted before=${persisted0} · persist()=${persistResult} · persisted after=${persisted1}`,
+          persistResult === true ? 'ok' : 'warn');
+
+        const est1 = await navigator.storage?.estimate?.().catch(() => null);
+        line(out, `estimate AFTER persist: quota=${fmt(est1?.quota)}`);
+
+        line(out, `OPFS getDirectory: ${!!navigator.storage?.getDirectory}`, navigator.storage?.getDirectory ? 'ok' : 'bad');
+        line(out, `OPFS createWritable (main thread): ${!!globalThis.FileSystemFileHandle?.prototype?.createWritable}`,
+          globalThis.FileSystemFileHandle?.prototype?.createWritable ? 'ok' : 'warn');
+        const syncRes = await workerSyncHandleTest();
+        line(out, `OPFS createSyncAccessHandle (worker): ${syncRes}`, syncRes === 'ok' ? 'ok' : 'warn');
+        line(out, 'READY — screenshot this, then optionally run the fill test.', 'ok');
+      }
+
+      document.getElementById('fill').onclick = async () => {
+        fillout.textContent = '';
+        const CHUNK = 32 * 1024 * 1024, MAX = 32; // 32 × 32MB = 1 GB cap
+        const db = await new Promise((res, rej) => {
+          const r = indexedDB.open('tiyul-probe', 1);
+          r.onupgradeneeded = () => r.result.createObjectStore('chunks');
+          r.onsuccess = () => res(r.result); r.onerror = () => rej(r.error);
+        });
+        // semi-random payload: constant fills get compressed/deduped by the
+        // browser and under-report usage — tile 64KB of real entropy instead
+        const seed = new Uint8Array(65536);
+        crypto.getRandomValues(seed);
+        const makeChunk = (i) => {
+          const c = new Uint8Array(CHUNK);
+          for (let o = 0; o < CHUNK; o += seed.length) c.set(seed, o);
+          for (let o = 0; o < CHUNK; o += 4096) c[o] = (i + o) & 0xff;
+          return c;
+        };
+        let written = 0;
+        try {
+          for (let i = 0; i < MAX; i++) {
+            await new Promise((res, rej) => {
+              const tx = db.transaction('chunks', 'readwrite');
+              tx.objectStore('chunks').put(makeChunk(i), i);
+              tx.oncomplete = res; tx.onerror = () => rej(tx.error); tx.onabort = () => rej(tx.error ?? new Error('aborted'));
+            });
+            written += CHUNK;
+            if ((i + 1) % 4 === 0) {
+              const e = await navigator.storage.estimate();
+              line(fillout, `written ${fmt(written)} · usage=${fmt(e.usage)} quota=${fmt(e.quota)}`);
+            }
+          }
+          line(fillout, `FILL DONE: ${fmt(written)} written with no quota error`, 'ok');
+        } catch (e) {
+          line(fillout, `STOPPED at ${fmt(written)}: ${e?.name} ${e?.message}`, 'bad');
+        }
+        const clear = await navigator.storage.estimate();
+        line(fillout, `final estimate: usage=${fmt(clear.usage)} quota=${fmt(clear.quota)}`);
+        line(fillout, 'cleanup: deleting probe DB…');
+        indexedDB.deleteDatabase('tiyul-probe');
+      };
+
+      main();
+    </script>
+  </body>
+</html>
