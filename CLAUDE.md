@@ -18,6 +18,14 @@ Product spec: [PRODUCT_DESIGN.md](PRODUCT_DESIGN.md) · Decision log: [DECISIONS
 - **CI green (typecheck, lint, unit in TZ=UTC + TZ=Asia/Jerusalem, contract, E2E smoke, a11y) is a merge requirement** — no overrides.
 - Core logic (constraint engine, timeline recompute, money) is built **test-first** with table-driven + property-based tests; UI is tested by behavior (Testing Library), never internals; flaky tests are quarantined and fixed within a week or deleted by documented decision.
 
+## Delivery & operations (binding, from M0)
+
+- **Every PR gets a preview deploy** (Vercel/Netlify) — the owner reviews by using the app at the preview URL, not by reading diffs. Merges to `main` auto-deploy to staging.
+- **CHANGELOG.md** gets an entry in every PR with a user-visible change; closing a milestone = git tag + GitHub Release summarizing what shipped.
+- **GitHub Milestones (M0–M3) + Issues** track feature work; PRs link their issue.
+- **Secrets never enter the repo** (it's public): `.env.example` documents required vars; real values live only in host/CI vaults.
+- **Dependencies:** lockfile committed; Dependabot enabled; `npm audit` (high+) runs in CI.
+
 ## Repo rules
 
 - **This repo is PUBLIC.** Never commit personal data: real family names, phone numbers, ticket PDFs, or the user's personal trip files (e.g. anything from ~/Downloads). Real-trip data may be used locally as seed fixtures only under `local/` (gitignored).
