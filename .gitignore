@@ -1,8 +1,15 @@
 # dependencies / build
 node_modules/
 dist/
+dev-dist/
 .env
 .env.*
+!.env.example
+
+# test output
+coverage/
+playwright-report/
+test-results/
 
 # OS noise
 .DS_Store

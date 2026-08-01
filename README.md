@@ -15,6 +15,18 @@ An offline-first PWA for planning trips with family and friends — in Israel an
 | [REGRESSIONS.md](REGRESSIONS.md) | Escape log — every bug that slipped through, why tests missed it, and the class-level fix |
 | [CHANGELOG.md](CHANGELOG.md) | User-visible changes per PR; milestone closes become tagged releases |
 
+## Quickstart
+
+```bash
+npm ci            # install
+npm run dev       # dev server
+npm test          # unit + component tests with coverage gates
+npm run e2e       # Playwright E2E (builds + serves automatically)
+npm run build     # production build (PWA)
+```
+
+**Owner setup (one-time, after PR #5):** import the repo in Vercel/Netlify for per-PR preview deploys (D-021), and enable branch protection on `main` requiring the CI checks (TESTING.md §5).
+
 ## Status
 
-**Design phase, hardened.** Spec v0.1 (PR #1), testing strategy (PR #2), and the v0.2 research revision (PR #3) are merged; pre-M0 hardening (PR #4 — time semantics, migrations, editing trust, delivery workflow, three phase gates: D-018…D-022) in review. Next: milestone M0 — timeline skeleton + test/CI scaffold, exiting via the **Yahel field test** (real 3-family trip, Aug 28–31). Roadmap: [PRODUCT_DESIGN.md §8](PRODUCT_DESIGN.md#8-roadmap).
+**M0 in review (PR #5).** Design docs (PRs #1–#4) are merged; the M0 skeleton — timeline with live recompute, op-based store, versioned schema, Hebrew/RTL, tests at every level, CI — is up for review. M0 exits via the **Yahel field test** (real 3-family trip, Aug 28–31, D-022). Roadmap: [PRODUCT_DESIGN.md §8](PRODUCT_DESIGN.md#8-roadmap).

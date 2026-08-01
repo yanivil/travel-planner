@@ -1,0 +1,144 @@
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
+import { useTranslation } from 'react-i18next';
+import { dispatch } from '../store/ops';
+import { formatRange, formatHM } from '../domain/time';
+import { wazeUrl } from '../domain/waze';
+import type { ScheduledStop } from '../domain/schedule';
+import type { Stop } from '../domain/types';
+
+interface Props {
+  stop: Stop;
+  scheduled: ScheduledStop;
+  isFirst: boolean;
+  isLast: boolean;
+  onMoveUp: () => void;
+  onMoveDown: () => void;
+}
+
+export function StopRow({ stop, scheduled, isFirst, isLast, onMoveUp, onMoveDown }: Props) {
+  const { t } = useTranslation();
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: stop.id });
+
+  const updateStop = (patch: Partial<Stop>, prev: Partial<Stop>) =>
+    void dispatch({ t: 'stop/update', id: stop.id, patch, prev });
+
+  return (
+    <li
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      className="stop-item-wrap"
+    >
+      <div className="stop-item">
+        <div className="stop-times">{formatRange(scheduled.startMin, scheduled.endMin)}</div>
+        <div className={`stop-card kind-${stop.kind}`}>
+          <div className="row">
+            <input
+              className="stop-name"
+              aria-label={t('stopName')}
+              defaultValue={stop.name}
+              onBlur={(e) => {
+                const name = e.target.value.trim();
+                if (name && name !== stop.name) updateStop({ name }, { name: stop.name });
+              }}
+            />
+          </div>
+          <div className="stop-fields">
+            <label>
+              {t('durationMin')}
+              <input
+                type="number"
+                min={0}
+                aria-label={`${t('durationMin')} — ${stop.name}`}
+                value={stop.durationMin}
+                onChange={(e) =>
+                  updateStop(
+                    { durationMin: Math.max(0, Number(e.target.value)) },
+                    { durationMin: stop.durationMin },
+                  )
+                }
+              />
+            </label>
+            {!isLast && (
+              <label>
+                {t('legMin')}
+                <input
+                  type="number"
+                  min={0}
+                  aria-label={`${t('legMin')} — ${stop.name}`}
+                  value={stop.legAfterMin ?? 0}
+                  onChange={(e) => {
+                    const v = Math.max(0, Number(e.target.value));
+                    updateStop({ legAfterMin: v > 0 ? v : null }, { legAfterMin: stop.legAfterMin });
+                  }}
+                />
+              </label>
+            )}
+            <div className="stop-actions">
+              <button
+                type="button"
+                className="btn-ghost"
+                aria-label={`${t('moveUp')}: ${stop.name}`}
+                disabled={isFirst}
+                onClick={onMoveUp}
+              >
+                ↑
+              </button>
+              <button
+                type="button"
+                className="btn-ghost"
+                aria-label={`${t('moveDown')}: ${stop.name}`}
+                disabled={isLast}
+                onClick={onMoveDown}
+              >
+                ↓
+              </button>
+              <button
+                type="button"
+                className="btn-ghost"
+                aria-label={`${t('delete')}: ${stop.name}`}
+                onClick={() => void dispatch({ t: 'stop/remove', stop })}
+              >
+                ✕
+              </button>
+              <button
+                type="button"
+                className="btn-ghost"
+                aria-label={`${t('reorder')}: ${stop.name}`}
+                {...attributes}
+                {...listeners}
+              >
+                ⠿
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+      {!isLast && scheduled.legAfterMin != null && (
+        <div className="stop-item">
+          <div />
+          <div className="leg-row">
+            <span>
+              🚗 {scheduled.legAfterMin} {t('min')} · {formatHM(scheduled.nextArriveMin ?? 0)}
+            </span>
+            {stop.wazeQuery && (
+              <a href={wazeUrl(stop.wazeQuery)} target="_blank" rel="noreferrer">
+                Waze ↗
+              </a>
+            )}
+          </div>
+        </div>
+      )}
+      {isLast && stop.wazeQuery && (
+        <div className="stop-item">
+          <div />
+          <div className="leg-row">
+            <a href={wazeUrl(stop.wazeQuery)} target="_blank" rel="noreferrer">
+              Waze ↗
+            </a>
+          </div>
+        </div>
+      )}
+    </li>
+  );
+}
