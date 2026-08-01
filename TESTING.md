@@ -29,6 +29,7 @@ Why Playwright over Cypress: **multi-context** in one test (organizer tab + acco
 - **Time & zones:** unit suite runs twice in CI — `TZ=UTC` and `TZ=Asia/Jerusalem`. Flight-day dual-clock rendering tested with DST-transition fixtures. All test clocks frozen (`vi.setSystemTime` / Playwright clock API); no test ever depends on the real current date.
 - **Offline:** sync queue unit-tested (LWW-per-field, review-list emission); bundle completeness has an automated audit — every asset the plan references must be in the bundle manifest.
 - **Share links & roles:** viewer capabilities (RSVP, claim, vote — but never edit) asserted at both the API-rules layer and E2E.
+- **RTL at component level:** key layout components (timeline, conflict drawer, RSVP grid) get a `dir="rtl"` render assertion in component tests — not just the E2E smoke.
 
 ## 3. End-to-end suites
 
@@ -48,10 +49,12 @@ Acceptance suites (full runs): the spec's scenarios **S1–S3** (PRODUCT_DESIGN.
 4. **Coverage guardrails, not worship:** constraint engine / timeline / money aim at ~100% branch; repo-wide gate 80% statements. Forbidden: asserting implementation details, brittle full-page snapshots, sleeps instead of waits.
 5. **Flaky tests are bugs:** quarantine immediately (tagged, tracked in REGRESSIONS.md), fix within a week or delete with a documented decision. Retry-until-green is never policy.
 6. **Test naming states behavior:** `flags ARRIVE_AFTER_CLOSE when leg lands after Friday last entry`, arrange-act-assert, one behavior per test.
+7. **Every schema change ships its migration test:** open a fixture database created at the previous schema version, run the Dexie upgrade, assert data integrity (counts, spot fields, no orphans). Offline user data outlives every refactor — migrations are the "never hostage" promise in code (D-019).
+8. **Visual-regression screenshots are deliberately deferred** until the UI stabilizes (post-M1) — flake cost currently outweighs value. Revisit at M2.
 
 ## 5. CI pipeline (lands with the M0 scaffold — first code PR)
 
-GitHub Actions on every PR: install → typecheck (`tsc --noEmit`) → lint → `vitest run --coverage` (matrix: `TZ=UTC`, `TZ=Asia/Jerusalem`) → Playwright smoke (chromium + iPhone viewport; traces uploaded on failure) → axe checks. Nightly: full E2E + acceptance suites. Once the first CI run is green, **branch protection on `main`** (required checks + PR review) gets enabled — owner action, we'll flag it in the M0 PR.
+GitHub Actions on every PR: install → typecheck (`tsc --noEmit`) → lint → `npm audit` (high+) → `vitest run --coverage` (matrix: `TZ=UTC`, `TZ=Asia/Jerusalem`) → Playwright smoke (chromium + iPhone viewport; traces uploaded on failure) → axe checks → **bundle-size report as a PR comment** (size-limit; catches "300 KB for a date picker"). From M1: **Lighthouse budgets as advisory** (PWA on mid-range phones in the desert). Nightly: full E2E + acceptance suites + a **non-blocking live-API canary** against real OpenRouteService/Open-Meteo endpoints (catches API drift our mocks hide). Once the first CI run is green, **branch protection on `main`** (required checks + PR review) gets enabled — owner action, we'll flag it in the M0 PR.
 
 Local commands (wired in M0): `npm test` · `npm run test:watch` · `npm run e2e` · `npm run e2e:ui`.
 

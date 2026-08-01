@@ -13,7 +13,8 @@ An offline-first PWA for planning trips with family and friends — in Israel an
 | [CLAUDE.md](CLAUDE.md) | Working agreements: PR-only workflow, documentation rules, public-repo data policy |
 | [TESTING.md](TESTING.md) | Testing strategy: risk-ordered pyramid, tools, E2E suites, binding test policies |
 | [REGRESSIONS.md](REGRESSIONS.md) | Escape log — every bug that slipped through, why tests missed it, and the class-level fix |
+| [CHANGELOG.md](CHANGELOG.md) | User-visible changes per PR; milestone closes become tagged releases |
 
 ## Status
 
-**Design phase.** Spec v0.1 (PR #1) + testing strategy (PR #2) merged; **v0.2 competitive-research revision** in review (PR #3) — market gaps folded into the roadmap, offline maps moved to PMTiles/OPFS, sync upgrade path set to PowerSync (D-014…D-017). Implementation starts with milestone M0 (timeline skeleton + test/CI scaffold) after approval. See the roadmap in [PRODUCT_DESIGN.md §8](PRODUCT_DESIGN.md#8-roadmap).
+**Design phase, hardened.** Spec v0.1 (PR #1), testing strategy (PR #2), and the v0.2 research revision (PR #3) are merged; pre-M0 hardening (PR #4 — time semantics, migrations, editing trust, delivery workflow, three phase gates: D-018…D-022) in review. Next: milestone M0 — timeline skeleton + test/CI scaffold, exiting via the **Yahel field test** (real 3-family trip, Aug 28–31). Roadmap: [PRODUCT_DESIGN.md §8](PRODUCT_DESIGN.md#8-roadmap).

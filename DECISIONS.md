@@ -91,3 +91,28 @@ Every significant product or technical decision gets an entry here, **in the sam
 **Decision:** no analytics/telemetry beyond anonymous crash reporting (opt-in), no ads, no data resale — stated publicly; every trip is exportable (single-file HTML in M1, calendar in M2). Marketing leads with the constraint engine and the timeline-map, never "AI-powered".
 **Why:** research signal was unambiguous — monetization distrust and signup walls kill launches on HN; privacy-stance OSS planners attract users on that stance alone; TripIt data-loss threads show "my plan vanished" is the category's deepest fear; AI-planner framing draws skepticism (generic itineraries) while *"AI drafts, constraint engine verifies"* (future) does not.
 **Revisit when:** monetization is ever considered — this decision constrains which models are acceptable.
+
+### D-018 · 2026-08-01 · Planned times are local wall-clock + IANA zone, never UTC instants
+**Decision:** all planned times (stops, meals, curfews) are stored as local wall-clock time plus IANA zone; flights carry origin-zone departure and destination-zone arrival. UTC instants are reserved for derived/audit fields (leg computed-at, sync timestamps).
+**Why:** the classic scheduling-app trap — a 09:00 hike must stay 09:00 through a DST transition or an edit made from another timezone; storing instants silently shifts family plans. Decided before M0 writes the first type because retrofitting time semantics is a full rewrite.
+**Revisit when:** never expected; any exception gets its own entry.
+
+### D-019 · 2026-08-01 · Schema versioning, migrations, and versioned exports from day one
+**Decision:** the IndexedDB schema is versioned from M0; every schema change ships a Dexie migration **and a migration test** (prior-version fixture → upgrade → integrity assertions, TESTING.md policy 7); every export embeds its schema version.
+**Why:** offline-first means user data lives on devices for years; the first unmigrated schema change after real trips exist corrupts family data — "never hostage" (D-017) includes never corrupted by an upgrade.
+**Revisit when:** never expected.
+
+### D-020 · 2026-08-01 · Editing trust: undo/redo + conflict dismissal with stable identity
+**Decision:** (a) the store is op-based from M0 so every edit is reversible; undo/redo UI ships in M1. (b) Conflicts carry a stable identity (rule + subject blocks); dismissing a soft conflict survives recomputes and re-raises only on escalation (soft→hard) or materially changed facts (M1, with the engine).
+**Why:** phone drag-editing guarantees accidental edits and spreadsheet users expect Ctrl+Z; and un-dismissable warnings train users to ignore all warnings — alert fatigue would kill the constraint engine, the product's moat.
+**Revisit when:** multi-user editing (M2) — undo semantics across users need a fresh look.
+
+### D-021 · 2026-08-01 · Delivery workflow: PR preview deploys, changelog, releases, repo hygiene
+**Decision:** every PR gets a preview deploy (owner reviews by using the app); merges to main auto-deploy to staging; CHANGELOG.md entry in every user-visible PR; milestone close = git tag + GitHub Release; GitHub Milestones/Issues track feature work; secrets only in vaults (.env.example in repo); Dependabot + `npm audit` (high+) in CI; bundle-size PR comments, Lighthouse advisory from M1; nightly non-blocking live-API canary.
+**Why:** the owner's review gate becomes "click and try it" instead of "read the diff"; the changelog/releases extend the documentation ethos to the product; the hygiene items are table stakes for a public repo.
+**Revisit when:** CI cost or preview-deploy limits bite.
+
+### D-022 · 2026-08-01 · Three gates: Yahel field test closes M0; security review gates M2; spikes open M1
+**Decision:** (a) M0's exit criterion is the real thing — the Yahel 3-family trip (Aug 28–31, 2026) planned in the app and used in the field, seeding REGRESSIONS.md with real escapes. (b) M2 ships only after a documented security & privacy review: share-link threat model (entropy, revocation), RLS policy review, rate limiting, no PII in logs, and trip-deletion purges server data. (c) M1 opens with two time-boxed spikes before deeper building: real-iPhone storage/persist() behavior with an oversized bundle, and a PMTiles offline render proof.
+**Why:** (a) the calendar gift is real — M0 (~2–3 wks) can land before the trip, and no test plan beats a desert weekend with four kids; (b) M2 is where family data meets accounts and capability URLs — reviewing after shipping would be malpractice given D-017's promises; (c) both spikes de-risk the two bets with the thinnest in-the-wild evidence.
+**Revisit when:** the Yahel dates move; or M2 scope changes materially.

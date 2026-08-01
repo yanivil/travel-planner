@@ -71,7 +71,8 @@ The core surface: a **day timeline** of time blocks with computed travel legs be
 - **Deep links:** every leg gets a **Waze** / Google Maps button (Waze is the Israel default); every stop can hold links (official site, booking page).
 - **Templates:** duplicate a day or a whole trip; save "our Golan weekend" as a starting point.
 - **Idea shortlist (M2):** an unscheduled "maybe" pool per trip — anyone adds places/links from the share link, the group votes, winners get dragged onto a day. Planning starts before a schedule exists (the "zero-to-draft" phase apps skip and spreadsheets own).
-- **Desktop-first planning, phone-first execution:** serious planning happens on a laptop with twenty tabs open (the spreadsheet lesson); the day-of surface is the phone. Both are first-class — desktop is not an afterthought port.
+- **Desktop-first planning, phone-first execution:** serious planning happens on a laptop with twenty tabs open (the spreadsheet lesson); the day-of surface is the phone. Both are first-class — desktop is not an afterthought port. Layouts respect browser/OS font scaling (grandparents persona).
+- **Undo/redo (store from M0, UI in M1):** the store is op-based from day one, so every edit — including a drag that cascaded a recompute — is reversible. Spreadsheet refugees expect Ctrl+Z; phones guarantee accidental drags.
 - **Parallel tracks (v2):** split the group for part of a day (hikers vs. grandparents+toddlers), rejoining at a shared stop. MVP approximation: parallel "alternative block" with participant tags.
 
 ### 4.2 Constraint Engine (the differentiator)
@@ -92,6 +93,7 @@ Users declare constraints once; the engine validates the computed schedule after
 - **Hard vs. soft:** hard = plan is infeasible (arrive after last entry); soft = quality warning (lunch 40 min past the kids' window). Severity is configurable per constraint.
 - **Participant-scoped:** constraints apply only when the affected people attend that stop (grandparents' pace limits don't restrict the couples-only evening).
 - **Conflict presentation:** badge on the offending block + a conflicts drawer listing all issues, each with plain-language explanation and **quick fixes**.
+- **Dismissal & stable identity (M1, D-020):** every conflict has a stable identity (rule + subject blocks), so an acknowledged soft conflict ("yes, lunch is late — we know") stays dismissed across recomputes and reappears only if it escalates (soft → hard) or its facts materially change. Without this, warnings become noise and the engine's credibility — the product's moat — dies of alert fatigue. Dismissals are per-trip, visible in the drawer under "acknowledged".
 - **Quick-fix engine (MVP heuristics, not a full solver):** shift within available slack · shorten a flexible block · swap adjacent stops · insert a rest break · drop-with-confirmation. Each suggestion previews its downstream effect ("pushes dinner to 19:40"). M3 adds **"suggest a better order"** — reorder the day's flexible stops to cut total drive time (the feature Wanderlog/Roadtrippers paywall).
 - **Weather-aware checks (M3):** forecasts via **Open-Meteo** (key-free) attach to outdoor-tagged stops; HEAT_WINDOW and rain warnings run on real forecast data, cached into the offline bundle with a "forecast as of" stamp.
 - **Auto-solver (later):** constraint-satisfaction pass that proposes a feasible reordering of a day ("make this day work").
@@ -216,10 +218,15 @@ erDiagram
 - **Leg** (derived, cached) — from/to stop, mode, distance, duration, polyline, computed-at timestamp.
 - **Participant** — name, contact, profile (meal/nap windows, drive tolerance, observance level, mobility), is-child + car-seat type.
 - **Constraint** — type, scope (trip/day/stop/participant-set), params, severity.
-- **Conflict** (derived) — rule id, severity, blocks involved, message, suggested fixes.
+- **Conflict** (derived) — stable identity (rule id + subject blocks), severity, message, suggested fixes, dismissed-state (who/when, re-raise-on-escalation).
 - **Expense** — amount, currency, payer, linked stop?, split mode, beneficiaries.
 - **Document** — kind (ticket/QR/PDF/note), file ref, linked stop/day, offline-pinned.
 - **ListItem** — kind (shopping / packing), category, label, quantity + unit, note, claimed-by (family/person), status (open / bought / packed), linked expense (optional).
+
+**Cross-cutting data rules (D-018, D-019):**
+
+- **Times are local wall-clock + IANA zone, never UTC instants.** A 09:00 hike stays 09:00 through DST shifts and cross-zone edits; flights carry origin-zone departure + destination-zone arrival. Only derived/audit fields (leg computed-at, sync timestamps) are UTC instants.
+- **The schema is versioned from day one.** Every schema change ships a Dexie migration and its migration test; every export (HTML, future JSON) embeds the schema version. Long-lived offline data is a contract — "never hostage" includes never corrupted by an upgrade.
 
 ---
 
@@ -265,9 +272,9 @@ flowchart LR
 
 | Milestone | Scope | Exit criterion |
 |---|---|---|
-| **M0 — Skeleton** (~2–3 wks) | Trip/day/stop CRUD, drag timeline, manual durations, Waze links, local-only storage | Plan a real day trip and use it in the field |
-| **M1 — It thinks** (~6–8 wks) | Auto drive legs + buffers, anchors/floaters, core conflicts (overlap, transit, closing, Shabbat, curfew), offline bundle v1 (data + wallet), read-only share link, **single-file HTML export** | The app catches a real planning mistake before the trip does; full plan usable in airplane mode; exported plan opens with zero bars |
-| **M2 — It's social** | Accounts/roles, RSVPs per day/stop, polls incl. **date-grid**, **idea shortlist**, vehicles & seat checks, expenses v1 + settle-up with **payment deep links** (Bit/Paybox/Venmo/PayPal), shared shopping/gear lists v1 + **task claims**, **hide-costs toggle** on share links, **calendar export (.ics + live feed)** | A friend joins day 2 by link, votes on dates, RSVPs, claims a task and a shopping item, sees their cost — no install; the plan appears in a spouse's work calendar |
+| **M0 — Skeleton** (~2–3 wks) | Trip/day/stop CRUD, drag timeline, manual durations, Waze links, local-only storage. Foundations that are 10× cheaper on day one: op-based store (undo-ready), wall-clock time types (D-018), schema-versioned DB + migration harness (D-019), i18n/RTL scaffolding, deploy previews + staging (D-021) | **The Yahel field test (D-022):** the real 3-family trip (Aug 28–31) is planned in the app and used in the field — real usage seeds REGRESSIONS.md |
+| **M1 — It thinks** (~6–8 wks) | **Opens with two time-boxed spikes (D-022): real-iPhone storage/persist() test + PMTiles offline render proof.** Then: auto drive legs + buffers, anchors/floaters, core conflicts (overlap, transit, closing, Shabbat, curfew) with **dismissal semantics (D-020)**, undo/redo UI, offline bundle v1 (data + wallet), read-only share link, **single-file HTML export** | The app catches a real planning mistake before the trip does; full plan usable in airplane mode; exported plan opens with zero bars |
+| **M2 — It's social** | Accounts/roles, RSVPs per day/stop, polls incl. **date-grid**, **idea shortlist**, vehicles & seat checks, expenses v1 + settle-up with **payment deep links** (Bit/Paybox/Venmo/PayPal), shared shopping/gear lists v1 + **task claims**, **hide-costs toggle** on share links, **calendar export (.ics + live feed)**. **Ships only after a documented security & privacy review (D-022):** threat model for share links (entropy, revocation), RLS policy review, rate limiting, no PII in logs, and **trip deletion purges server data** | A friend joins day 2 by link, votes on dates, RSVPs, claims a task and a shopping item, sees their cost — no install; the plan appears in a spouse's work calendar |
 | **M3 — It's deep** | Offline map regions (**PMTiles/OPFS**), quick-fix suggestions incl. **reorder-for-less-driving**, **weather-aware rules via Open-Meteo** (heat/rain), meal/nap rules, **budget-vs-actual**, **announcement blasts**, packing templates + **auto-seed from stop tags**, abroad pack (time zones, flights, currency), Places API integration | Full S1 and S2 scenarios pass end-to-end |
 | **Later / v2** | **Flagship v2 bet: confirmation email import (trips@) + flight status alerts (D-016)** · auto-solver ("make this day work") · transit mode · parallel group tracks · AI drafting, framed as *AI drafts, the constraint engine verifies* · post-trip memories (route track, shared family album, printed book) · receipt OCR itemization · villa room/bed assignments | — |
 
