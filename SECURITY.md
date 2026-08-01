@@ -24,6 +24,6 @@ Rule of thumb: **unshared trip = only on your device; shared trip = your device 
 
 ## Accepted risks & deferred items
 
-- **Historical commits carry the owner's personal email** (normal git metadata in public repos). History rewrite rejected — disruption outweighs benefit; the owner may switch future commits to their GitHub noreply address.
+- **Historical commits carry the owner's personal email** (normal git metadata in public repos). History rewrite rejected — disruption outweighs benefit. Future commits switched to the GitHub noreply address on 2026-08-01 (repo-local git config).
 - **CSP** deferred to M1, when the app's real external endpoints (routing, tiles, weather) are known and can be allow-listed precisely.
 - **Dependabot PRs** are exempt from the PR template's Tests section (dependency-only), but still require green CI and owner merge.

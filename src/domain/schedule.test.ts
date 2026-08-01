@@ -25,6 +25,8 @@ describe('computeDaySchedule tables', () => {
       endMin: 630,
       legAfterMin: null, // last stop never renders a leg, even if one is set
       nextArriveMin: null,
+      slackBeforeMin: 0,
+      lateByMin: 0,
     });
   });
 
@@ -43,6 +45,63 @@ describe('computeDaySchedule tables', () => {
       { id: 'b', durationMin: 10, legAfterMin: null },
     ]);
     expect(schedule[1]?.startMin).toBe(10);
+  });
+});
+
+describe('anchored stops (D-025)', () => {
+  test('an anchor pins the start; early arrival becomes visible slack', () => {
+    const schedule = computeDaySchedule(480, [
+      { id: 'drive', durationMin: 60, legAfterMin: 0 },
+      { id: 'lunch', durationMin: 60, legAfterMin: null, anchorStartMin: 600 },
+    ]);
+    // chain arrives 09:00, reservation at 10:00 → 60 min slack, start pinned
+    expect(schedule[1]).toMatchObject({ startMin: 600, endMin: 660, slackBeforeMin: 60, lateByMin: 0 });
+  });
+
+  test('arriving after the anchor is flagged as late, never silently shifted', () => {
+    const schedule = computeDaySchedule(480, [
+      { id: 'drive', durationMin: 60, legAfterMin: 0 },
+      { id: 'tour', durationMin: 90, legAfterMin: null, anchorStartMin: 500 },
+    ]);
+    // chain arrives 09:00 (540), tour was booked for 08:20 (500) → 40 min late
+    expect(schedule[1]).toMatchObject({ startMin: 500, endMin: 590, slackBeforeMin: 0, lateByMin: 40 });
+  });
+
+  test('downstream stops chain from the anchored stop planned end', () => {
+    const schedule = computeDaySchedule(480, [
+      { id: 'a', durationMin: 30, legAfterMin: 10 },
+      { id: 'b', durationMin: 60, legAfterMin: 20, anchorStartMin: 600 },
+      { id: 'c', durationMin: 15, legAfterMin: null },
+    ]);
+    expect(schedule[2]?.startMin).toBe(600 + 60 + 20);
+  });
+
+  const anchoredStopArb = fc.record({
+    id: fc.uuid(),
+    durationMin: fc.integer({ min: 0, max: 600 }),
+    legAfterMin: fc.option(fc.integer({ min: 0, max: 300 }), { nil: null }),
+    anchorStartMin: fc.option(fc.integer({ min: 0, max: 1600 }), { nil: null }),
+  });
+
+  test('property: slack and late are exact and mutually exclusive', () => {
+    fc.assert(
+      fc.property(startArb, fc.array(anchoredStopArb, { maxLength: 15 }), (start, stops) => {
+        const schedule = computeDaySchedule(start, stops);
+        schedule.forEach((s, i) => {
+          const arrival = i === 0 ? start : schedule[i - 1]!.nextArriveMin!;
+          const anchor = stops[i]!.anchorStartMin;
+          if (anchor == null) {
+            expect(s.slackBeforeMin).toBe(0);
+            expect(s.lateByMin).toBe(0);
+            expect(s.startMin).toBe(arrival);
+          } else {
+            expect(s.startMin).toBe(anchor);
+            expect(s.slackBeforeMin - s.lateByMin).toBe(anchor - arrival);
+            expect(Math.min(s.slackBeforeMin, s.lateByMin)).toBe(0);
+          }
+        });
+      }),
+    );
   });
 });
 

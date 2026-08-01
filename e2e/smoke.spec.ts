@@ -57,6 +57,35 @@ test('plan a day: computed times, leg edits, reorder, persistence, Waze link', a
   await expect(page.getByText('08:00–11:00')).toBeVisible();
 });
 
+test('pinning a reservation surfaces slack and lateness (anchors, D-025)', async ({ page }) => {
+  await switchToEnglish(page);
+  await page.getByLabel('Trip name').fill('Anchors');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await page.getByRole('button', { name: '+ Add day' }).click();
+
+  const form = page.locator('.add-form');
+  await form.getByLabel('Stop name').fill('Drive');
+  await form.getByLabel('Duration (min)').fill('60');
+  await form.getByRole('button', { name: 'Add stop' }).click();
+  await expect(page.getByText('08:00–09:00')).toBeVisible(); // settle before the next form fill
+
+  await form.getByLabel('Stop name').fill('Lunch');
+  await form.getByLabel('Duration (min)').fill('60');
+  await form.getByRole('button', { name: 'Add stop' }).click();
+  await expect(page.getByText('09:00–10:00')).toBeVisible();
+
+  // pin at the computed start, then move the reservation to 09:45 → slack
+  await page.getByRole('button', { name: 'Pin time: Lunch' }).click();
+  await page.getByLabel('Pinned start — Lunch').fill('09:45');
+  await expect(page.getByText('09:45–10:45')).toBeVisible();
+  await expect(page.getByText(/45 min wait/)).toBeVisible();
+
+  // move the reservation before the arrival → flagged late, start stays pinned
+  await page.getByLabel('Pinned start — Lunch').fill('08:30');
+  await expect(page.getByText('08:30–09:30')).toBeVisible();
+  await expect(page.getByText(/Late by 30 min/)).toBeVisible();
+});
+
 test('day start edit shifts the whole schedule', async ({ page }) => {
   await switchToEnglish(page);
   await page.getByLabel('Trip name').fill('Shift test');
