@@ -61,3 +61,9 @@ Every significant product or technical decision gets an entry here, **in the sam
 ### D-012 · 2026-08-01 · v1 non-goals
 **Decision:** no in-app booking/payments, no chat, no turn-by-turn navigation, no flight/hotel search, no social feeds.
 **Why:** each one is a product in itself; WhatsApp and Waze already won their niches — we deep-link into them instead of competing.
+
+### D-013 · 2026-08-01 · Testing strategy: risk-ordered pyramid + escape analysis on every bug
+**Decision:** Vitest (+fast-check property tests) / React Testing Library + MSW + fake-indexeddb / Playwright (multi-context, offline, mobile viewport, RTL) with axe a11y checks; unit suite runs in both TZ=UTC and TZ=Asia/Jerusalem. Binding policies: tests ship in the same PR as the behavior; bug fixes start with a failing repro test and must document root cause + why tests missed it + class-level prevention (logged in REGRESSIONS.md); CI green required to merge; core logic (constraints, timeline recompute, money) is test-first with ~100% branch target; flaky tests are quarantined then fixed-or-deleted within a week. Full detail: TESTING.md.
+**Why:** the product's whole promise is "the plan is correct" — a wrong arrival time or Shabbat miscalculation is product failure, and offline/multi-user paths are where PWAs quietly rot. Owner explicitly requires that every future fix carries tests plus an understanding of why the gap existed (learning loop, not patch loop).
+**Trigger:** owner request, 2026-08-01.
+**Revisit when:** CI wall-time exceeds ~10 min on PRs, or the regression log shows an escape class the pyramid doesn't address.

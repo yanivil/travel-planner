@@ -11,7 +11,9 @@ An offline-first PWA for planning trips with family and friends — in Israel an
 | [PRODUCT_DESIGN.md](PRODUCT_DESIGN.md) | Full product spec: personas, acceptance scenarios, feature specs, data model, architecture, roadmap (M0–M3) |
 | [DECISIONS.md](DECISIONS.md) | The decision log — every significant choice, with its why and when to revisit |
 | [CLAUDE.md](CLAUDE.md) | Working agreements: PR-only workflow, documentation rules, public-repo data policy |
+| [TESTING.md](TESTING.md) | Testing strategy: risk-ordered pyramid, tools, E2E suites, binding test policies |
+| [REGRESSIONS.md](REGRESSIONS.md) | Escape log — every bug that slipped through, why tests missed it, and the class-level fix |
 
 ## Status
 
-**Design phase.** Spec v0.1 under review (PR #1); implementation starts with milestone M0 (timeline skeleton). See the roadmap in [PRODUCT_DESIGN.md §8](PRODUCT_DESIGN.md#8-roadmap).
+**Design phase.** Spec v0.1 approved and merged (PR #1); testing strategy defined (PR #2). Implementation starts with milestone M0 (timeline skeleton + test/CI scaffold). See the roadmap in [PRODUCT_DESIGN.md §8](PRODUCT_DESIGN.md#8-roadmap).
