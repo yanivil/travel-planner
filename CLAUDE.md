@@ -11,6 +11,13 @@ Product spec: [PRODUCT_DESIGN.md](PRODUCT_DESIGN.md) · Decision log: [DECISIONS
 - **Code comments** explain constraints and non-obvious whys (e.g., "frozen leg times: offline bundles must not silently restale"), never narrate the obvious.
 - Keep PRs reviewable: one topic per PR.
 
+## Testing (binding — full strategy in [TESTING.md](TESTING.md))
+
+- **Every PR that changes behavior includes its tests.** The PR template's Tests section is mandatory: list what's covered AND what isn't, with reasons.
+- **Bug fixes are red→green:** first commit is a failing test reproducing the bug; the PR documents root cause, **why existing tests missed it**, and the class-level prevention added; every escape gets an entry in [REGRESSIONS.md](REGRESSIONS.md).
+- **CI green (typecheck, lint, unit in TZ=UTC + TZ=Asia/Jerusalem, contract, E2E smoke, a11y) is a merge requirement** — no overrides.
+- Core logic (constraint engine, timeline recompute, money) is built **test-first** with table-driven + property-based tests; UI is tested by behavior (Testing Library), never internals; flaky tests are quarantined and fixed within a week or deleted by documented decision.
+
 ## Repo rules
 
 - **This repo is PUBLIC.** Never commit personal data: real family names, phone numbers, ticket PDFs, or the user's personal trip files (e.g. anything from ~/Downloads). Real-trip data may be used locally as seed fixtures only under `local/` (gitignored).
