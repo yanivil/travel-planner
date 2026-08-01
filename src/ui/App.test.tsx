@@ -7,7 +7,7 @@ import { setLang } from '../i18n';
 import { App } from './App';
 
 beforeEach(async () => {
-  await Promise.all([db.trips.clear(), db.days.clear(), db.stops.clear()]);
+  await Promise.all([db.trips.clear(), db.days.clear(), db.stops.clear(), db.dismissals.clear()]);
   history.length = 0;
   await setLang('en');
 });

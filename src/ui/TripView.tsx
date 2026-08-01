@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import { db } from '../db/db';
 import { dispatch } from '../store/ops';
 import { DayTimeline } from './DayTimeline';
+import { NumberField } from './NumberField';
 
 const DEFAULT_DAY_START_MIN = 8 * 60;
 const DEFAULT_ZONE = 'Asia/Jerusalem';
@@ -32,6 +33,7 @@ export function TripView({ tripId, onBack }: { tripId: string; onBack: () => voi
         title: t('dayN', { n: index + 1 }),
         startMin: DEFAULT_DAY_START_MIN,
         zone: DEFAULT_ZONE,
+        curfewMin: null,
       },
     });
     setSelectedDayId(id);
@@ -70,9 +72,26 @@ export function TripView({ tripId, onBack }: { tripId: string; onBack: () => voi
             </button>
           </div>
         )}
-        <button type="button" onClick={onBack}>
-          {t('back')}
-        </button>
+        <div className="row" style={{ gap: '0.4rem' }}>
+          <label className="row" style={{ gap: '0.3rem' }}>
+            <span className="muted">{t('maxStretch')}</span>
+            <NumberField
+              value={trip.maxDriveStretchMin ?? 0}
+              ariaLabel={t('maxStretch')}
+              onCommit={(v) =>
+                void dispatch({
+                  t: 'trip/update',
+                  id: trip.id,
+                  patch: { maxDriveStretchMin: v > 0 ? v : null },
+                  prev: { maxDriveStretchMin: trip.maxDriveStretchMin },
+                })
+              }
+            />
+          </label>
+          <button type="button" onClick={onBack}>
+            {t('back')}
+          </button>
+        </div>
       </div>
       <nav className="day-tabs" aria-label={t('days')}>
         {days?.map((day) => (

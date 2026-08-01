@@ -9,6 +9,7 @@
   --accent-ink: #ffffff;
   --danger: #bc3d32;
   --sand: #b98a4c;
+  --ok: #3f7a4e;
   --radius: 10px;
 }
 @media (prefers-color-scheme: dark) {
@@ -23,6 +24,7 @@
     --accent-ink: #0d1a20;
     --danger: #e0645a;
     --sand: #d2a465;
+    --ok: #6fae7c;
   }
 }
 
@@ -111,6 +113,27 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .chip.slack { color: var(--sand); }
 .chip.bad { color: var(--danger); border-color: var(--danger); background: transparent; font-weight: 600; }
 .pin-btn[aria-pressed='true'] { color: var(--accent); border-color: var(--accent); }
+
+.conflicts { margin-block-start: 1.25rem; }
+.conflicts-title { font-size: 0.95rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted); margin: 0 0 0.5rem; }
+.conflict-list { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.5rem; }
+.conflict-card { display: flex; align-items: center; gap: 0.6rem; padding: 0.6rem 0.8rem; margin: 0; }
+.conflict-card.sev-hard { border-inline-start: 4px solid var(--danger); }
+.conflict-card.sev-soft { border-inline-start: 4px solid var(--sand); }
+.conflict-msg { flex: 1; font-size: 0.92rem; }
+.pill { font-weight: 700; }
+.pill.hard { color: var(--danger); }
+.pill.soft { color: var(--sand); }
+.acked { margin-block-start: 0.6rem; }
+.acked-card { opacity: 0.75; }
+.ok-line { color: var(--ok, #3f7a4e); }
+
+.details-grid { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-block-start: 0.5rem; padding-block-start: 0.5rem; border-block-start: 1px dashed var(--line); }
+.details-grid label { display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; color: var(--muted); }
+.wd-row { display: inline-flex; gap: 0.15rem; }
+.wd-btn { min-height: 1.9rem; padding: 0.1rem 0.45rem; font-size: 0.8rem; }
+.wd-btn[aria-pressed='true'] { background: var(--danger); color: var(--accent-ink); border-color: var(--danger); }
+.clear-btn { min-height: 1.6rem; padding: 0 0.4rem; font-size: 0.8rem; }
 
 .add-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: end; margin-block-start: 1rem; }
 .add-form label { display: grid; gap: 0.2rem; font-size: 0.85rem; color: var(--muted); }

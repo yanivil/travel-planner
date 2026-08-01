@@ -26,6 +26,11 @@ test('the demo Yahel trip loads and renders a Hebrew timeline', async ({ page })
   await expect(page.getByText('14:00–15:00')).toBeVisible();
   await expect(page.getByText('16:00–18:30')).toBeVisible();
   await expect(page.getByText('18:30–20:30')).toBeVisible();
+
+  // the demo Saturday deliberately ends 30 min past its curfew — the engine
+  // catches it, in Hebrew, out of the box
+  await page.getByRole('button', { name: 'שבת — בריכה ואילת' }).click();
+  await expect(page.getByText(/היום מסתיים 30 דק׳ אחרי שעת החזרה \(22:00\)/).first()).toBeVisible();
 });
 
 test('trips screen and timeline have no serious accessibility violations', async ({ page }) => {
