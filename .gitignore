@@ -16,3 +16,8 @@ test-results/
 
 # local personal fixtures — real trip data never enters this public repo (see CLAUDE.md)
 local/
+
+# spike artifacts — never commit heavy/generated spike files
+spikes/**/node_modules/
+spikes/**/dist/
+*.pmtiles
