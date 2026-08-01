@@ -58,3 +58,13 @@ Local commands (wired in M0): `npm test` · `npm run test:watch` · `npm run e2e
 ## 6. Division of labor
 
 Design docs (this file) define *what must be true*; each feature PR carries the tests proving it. The M0 scaffold PR includes: Vitest + RTL + Playwright + MSW + fast-check configured, the CI workflow, one real example test at every level, and the S1-style fixture — so from the second code PR onward, "add tests" is never blocked on infrastructure.
+
+## 7. Service-worker & offline testing — known limits (recorded 2026-08-01, research)
+
+Playwright cannot fully cover our offline story; we plan around it instead of discovering it later:
+
+- **SW support is Chromium-only** in Playwright — WebKit/Firefox service-worker behavior (i.e. real iOS Safari) is untestable in CI. Mitigation: a **manual iOS device checklist** per release — install to home screen, `persist()` granted, airplane-mode walk-through of E2E-2, large-bundle load.
+- **`context.setOffline(true)` does not reliably fail SW-originated fetches** and fires no `online/offline` events. Offline specs therefore follow the proven pattern: fresh context → wait for an **app-exposed readiness signal** (SW activated + precache complete) → `setOffline(true)` → reload → assert; plus a separate cold-start-offline spec asserting graceful behavior.
+- **All non-offline suites run with `serviceWorkers: 'block'`** so caching never makes other tests nondeterministic.
+- **PMTiles/OPFS offline maps** are asserted in the Chromium offline spec (map renders with network down); iOS coverage of the same is manual-checklist only.
+- These caveats are pinned to the Playwright version in use — re-verify when bumping it (SW network-event support is still experimental upstream).

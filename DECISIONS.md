@@ -14,9 +14,10 @@ Every significant product or technical decision gets an entry here, **in the sam
 **Why:** the group-adoption model depends on "open a link, no install"; one codebase; offline achievable with service workers. Original requirement from the product brief.
 **Revisit when:** we need capabilities PWAs can't give (reliable background push on iOS, >1 GB storage).
 
-### D-003 · 2026-08-01 · MapLibre GL + OSM tiles (not Google Maps)
-**Decision:** maps render with MapLibre GL using OpenStreetMap-based tiles.
-**Why:** offline trip bundles require caching map tiles; Google Maps tile licensing forbids that. OSM licensing allows it.
+### D-003 · 2026-08-01 · MapLibre GL + vector PMTiles regions (not Google Maps; not raster tile caching)
+**Decision:** maps render with MapLibre GL; offline regions ship as per-trip **vector PMTiles archives stored in OPFS**, served via the pmtiles protocol; style/glyphs/sprites precached by the service worker. Evaluate `@makina-corpus/maplibre-offline-pmtiles` before building our own.
+**Updated 2026-08-01 (research):** originally "cached raster OSM tiles". Changed because service-worker/HTTP caching of range requests is unreliable across browsers (Cache API can't store 206 responses; Safari has a history of dropping Range through SWs), and vector region extracts are roughly 10× smaller — tens of MB per trip instead of hundreds.
+**Why:** offline bundles require locally-stored map data; Google tile licensing forbids caching entirely; PMTiles turns a tile pyramid into one portable file.
 **Trade-off accepted:** weaker POI/business data than Google — mitigated by paste-a-Google-Maps-link import (D-007).
 
 ### D-004 · 2026-08-01 · Routing via OpenRouteService behind an abstraction
@@ -24,14 +25,16 @@ Every significant product or technical decision gets an entry here, **in the sam
 **Why:** cost control during development; the abstraction lets Google Routes API swap in if ORS quality disappoints in Israel.
 **Revisit when:** leg-time accuracy complaints on real trips.
 
-### D-005 · 2026-08-01 · Supabase backend; sync = offline queue + last-writer-wins; CRDT deferred
-**Decision:** Supabase (Postgres, Auth, Realtime, Storage). Offline edits queue locally and sync with last-writer-wins per field plus a "changed while you were away" review list. CRDT (Yjs/PowerSync) explicitly deferred.
-**Why:** fastest path to group sharing with row-level security; CRDT complexity isn't justified before real evidence of concurrent-edit conflicts.
+### D-005 · 2026-08-01 · Supabase backend; sync = offline queue + last-writer-wins; upgrade path = PowerSync
+**Decision:** Supabase (Postgres, Auth, Realtime, Storage). Offline edits queue locally and sync with last-writer-wins per field plus a "changed while you were away" review list. When real concurrency demands more, the designated upgrade is **PowerSync** — not CRDTs. Queue entries stay row-shaped (per-row ops + `updated_at`) so that migration is mechanical.
+**Updated 2026-08-01 (research):** originally "CRDT (Yjs/PowerSync) deferred". Ecosystem review: Supabase still has no first-party offline; PowerSync is the official-partner sync engine with true offline (local SQLite; OPFS on web since 2025, Safari-compatible VFS); ElectricSQL and Zero explicitly don't target client persistence; Legend-State is lighter but has reported lost-update issues after long offline periods.
+**Why:** fastest path to group sharing with row-level security; sync-engine complexity isn't justified before real evidence of concurrent-edit conflicts.
 **Revisit when:** M2 instrumentation shows meaningful simultaneous editing.
 
 ### D-006 · 2026-08-01 · Hebrew calendar computed client-side with @hebcal/core
 **Decision:** Shabbat/chag entry-exit times (per location) computed in the client with @hebcal/core.
 **Why:** must work offline (candle-lighting time in a dead zone matters); library is accurate per lat/lng and removes a server dependency.
+**Implementation notes (added 2026-08-01, research):** pin v6+ (ESM-only, ~54 KB gz incl. deps — acceptable); the Israel/Diaspora flag changes holiday scheduling and must be set **per trip location, not per user**; Jerusalem candle-lighting default is 40 min before sunset (not the general 18); use IANA timezone names only; expose candle/havdalah offsets in family profiles; show "times are approximations — consult your halachic authority" near displayed times (mirrors upstream's own disclaimer).
 
 ### D-007 · 2026-08-01 · Places data: manual entry + link-paste in MVP; Places API later
 **Decision:** MVP has no paid places search. Stops are created manually or by pasting a Google Maps link (parsed for name/coords). Google Places API integration deferred to M3.
@@ -67,3 +70,24 @@ Every significant product or technical decision gets an entry here, **in the sam
 **Why:** the product's whole promise is "the plan is correct" — a wrong arrival time or Shabbat miscalculation is product failure, and offline/multi-user paths are where PWAs quietly rot. Owner explicitly requires that every future fix carries tests plus an understanding of why the gap existed (learning loop, not patch loop).
 **Trigger:** owner request, 2026-08-01.
 **Revisit when:** CI wall-time exceeds ~10 min on PRs, or the regression log shows an escape class the pyramid doesn't address.
+
+### D-014 · 2026-08-01 · Competitive-research feature additions and their phases
+**Context:** owner-requested three-sweep research before M0 — competitor audit (Wanderlog/TripIt/Troupe/Roadtrippers/Tripomatic/Polarsteps/Stippl/Kayak/Splitwise/Tricount/PackPoint + OSS TREK), Reddit pain-mining, HN/technical validation. Core finding: our four pillars (constraint engine, per-activity RSVP wired to money/seats, accountless links, offline-as-free-core) are whitespace — no product has them; the gaps were import/export surfaces, pre-trip decision tools, organizer-burden tools, money depth, weather.
+**Decision:** fold in — **M1:** single-file HTML export; desktop-first planning requirement. **M2:** calendar export (.ics + live feed), idea shortlist, date-grid polls, task claims, hide-costs toggle on share links, settle-up payment deep links (Bit/Paybox/Venmo/PayPal). **M3:** Open-Meteo weather joining the constraint engine, budget-vs-actual, announcement blasts, reorder-for-less-driving quick fix, packing auto-seed from stop tags. **Later/v2:** email confirmation import + flight alerts (flagship, D-016), post-trip memories, receipt OCR, room assignments. Declined: live location sharing (privacy), AI-first framing.
+**Why:** every added item has multi-source evidenced demand; placements follow dependency order (sharing/expense machinery lands in M2) and risk.
+**Revisit when:** M2 ships — re-rank M3/v2 against real usage.
+
+### D-015 · 2026-08-01 · Weather source: Open-Meteo
+**Decision:** weather forecasts come from Open-Meteo (key-free, free for non-commercial), fetched per outdoor-tagged stop, cached into offline bundles with a "forecast as of" stamp; feeds HEAT_WINDOW and rain warnings (M3).
+**Why:** no API-key operations burden; competitors treat per-item weather as a differentiator (TripIt/IBM) while our constraint engine can act on it, not just display it.
+**Revisit when:** forecast quality for Israel micro-climates (Arava, Golan) proves insufficient — then evaluate IMS data.
+
+### D-016 · 2026-08-01 · Confirmation email import is the flagship v2 bet; booking stays a non-goal
+**Decision:** v1 ships without booking-email import. It is recorded as the **first major v2 feature** (trips@ forwarding address → auto-created flight/lodging blocks; flight alerts ride on it). In-app *booking* remains a permanent non-goal — import of already-made bookings is a distinct job.
+**Why:** it's the most-loved feature in the category (TripIt/Kayak) and the top wish in every launch thread — but it needs inbound-email infrastructure and resilient parsing (TripIt's 2024 import breakage shows the maintenance cost), which would sink v1 velocity. Deferring is a bet we consciously document rather than drift into.
+**Revisit when:** v1 has real users; or a maintained parsing library/service makes the cost drop.
+
+### D-017 · 2026-08-01 · Positioning: private, no-telemetry, never-hostage
+**Decision:** no analytics/telemetry beyond anonymous crash reporting (opt-in), no ads, no data resale — stated publicly; every trip is exportable (single-file HTML in M1, calendar in M2). Marketing leads with the constraint engine and the timeline-map, never "AI-powered".
+**Why:** research signal was unambiguous — monetization distrust and signup walls kill launches on HN; privacy-stance OSS planners attract users on that stance alone; TripIt data-loss threads show "my plan vanished" is the category's deepest fear; AI-planner framing draws skepticism (generic itineraries) while *"AI drafts, constraint engine verifies"* (future) does not.
+**Revisit when:** monetization is ever considered — this decision constrains which models are acceptable.
