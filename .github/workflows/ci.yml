@@ -7,6 +7,10 @@ on:
   push:
     branches: [main]
 
+# least privilege: no job needs to write to the repo (D-024)
+permissions:
+  contents: read
+
 jobs:
   checks:
     name: typecheck · lint · unit (TZ=${{ matrix.tz }})

@@ -14,6 +14,8 @@ An offline-first PWA for planning trips with family and friends — in Israel an
 | [TESTING.md](TESTING.md) | Testing strategy: risk-ordered pyramid, tools, E2E suites, binding test policies |
 | [REGRESSIONS.md](REGRESSIONS.md) | Escape log — every bug that slipped through, why tests missed it, and the class-level fix |
 | [CHANGELOG.md](CHANGELOG.md) | User-visible changes per PR; milestone closes become tagged releases |
+| [SECURITY.md](SECURITY.md) | Security posture, where trip data lives per milestone, how to report vulnerabilities |
+| [DEPLOYMENT.md](DEPLOYMENT.md) | URLs, the PR→preview→production loop, rollback runbook, settings inventory |
 
 ## Quickstart
 
