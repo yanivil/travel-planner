@@ -6,6 +6,11 @@ Design-phase history (PRs #1–#4) lives in DECISIONS.md and the PRs themselves;
 
 ## [Unreleased]
 
+### Fixed — numeric fields ate keystrokes (R-001, PR #23)
+
+- Typing multi-digit values into the duration / drive-time fields no longer loses digits: while you type, the field is yours — storage updates sync in only when you leave it.
+- Clearer field label: **"נסיעה לעצירה הבאה (דק׳)" / "Drive to next stop (min)"** (was "Drive after (min)"), after owner confusion in field-testing.
+
 ### Added — trip rename (PR #24)
 
 - Trip names are now editable: ✎ next to the title (Enter or leaving the field saves; blank names are rejected).

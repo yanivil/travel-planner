@@ -35,7 +35,7 @@ test('plan a day: computed times, leg edits, reorder, persistence, Waze link', a
   await expect(page.getByText('10:30–13:30')).toBeVisible();
 
   // set a 25-minute drive after Pool → Timna shifts to 10:55
-  await page.getByLabel('Drive after (min) — Pool').fill('25');
+  await page.getByLabel('Drive to next stop (min) — Pool').fill('25');
   await expect(page.getByText('10:55–13:55')).toBeVisible();
   await expect(page.getByText(/25 min · 10:55/)).toBeVisible();
 
