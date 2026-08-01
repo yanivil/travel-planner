@@ -1,0 +1,11 @@
+# dependencies / build
+node_modules/
+dist/
+.env
+.env.*
+
+# OS noise
+.DS_Store
+
+# local personal fixtures — real trip data never enters this public repo (see CLAUDE.md)
+local/
