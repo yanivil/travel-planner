@@ -1,0 +1,9 @@
+{
+  "name": "Tiyul Storage Probe",
+  "short_name": "TiyulProbe",
+  "start_url": "/storage-probe.html",
+  "display": "standalone",
+  "background_color": "#101d24",
+  "theme_color": "#101d24",
+  "icons": [{ "src": "/icon.svg", "sizes": "any", "type": "image/svg+xml", "purpose": "any" }]
+}
