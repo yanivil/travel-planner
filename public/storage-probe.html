@@ -3,6 +3,11 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- own manifest: lets the probe itself be installed standalone, so the
+         installed-mode measurement is one tap on Android AND iOS (spike #12) -->
+    <link rel="manifest" href="/probe-manifest.json" />
+    <meta name="apple-mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <title>Tiyul storage probe (spike #12)</title>
     <style>
       body { margin: 0; padding: 12px; font-family: ui-monospace, Menlo, monospace; background: #101d24; color: #e9e6db; }
