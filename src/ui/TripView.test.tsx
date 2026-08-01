@@ -54,6 +54,34 @@ describe('TripView', () => {
     expect(await db.days.count()).toBe(1);
   });
 
+  test('renaming the trip commits on blur and updates the heading', async () => {
+    const user = userEvent.setup();
+    render(<TripView tripId="trip-1" onBack={() => {}} />);
+    await screen.findByRole('heading', { name: 'North weekend' });
+
+    await user.click(screen.getByRole('button', { name: 'Rename trip: North weekend' }));
+    const input = screen.getByLabelText('Trip name');
+    await user.clear(input);
+    await user.type(input, 'Golan 2026');
+    await user.tab();
+
+    expect(await screen.findByRole('heading', { name: 'Golan 2026' })).toBeInTheDocument();
+    expect((await db.trips.get('trip-1'))?.name).toBe('Golan 2026');
+  });
+
+  test('a blank rename is rejected and the old name stays', async () => {
+    const user = userEvent.setup();
+    render(<TripView tripId="trip-1" onBack={() => {}} />);
+    await screen.findByRole('heading', { name: 'North weekend' });
+
+    await user.click(screen.getByRole('button', { name: 'Rename trip: North weekend' }));
+    await user.clear(screen.getByLabelText('Trip name'));
+    await user.tab();
+
+    expect(await screen.findByRole('heading', { name: 'North weekend' })).toBeInTheDocument();
+    expect((await db.trips.get('trip-1'))?.name).toBe('North weekend');
+  });
+
   test('back button calls onBack', async () => {
     const onBack = vi.fn();
     const user = userEvent.setup();

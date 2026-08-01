@@ -18,6 +18,7 @@ export function TripView({ tripId, onBack }: { tripId: string; onBack: () => voi
   const [selectedDayId, setSelectedDayId] = useState<string | null>(null);
 
   const activeDayId = selectedDayId ?? days?.[0]?.id ?? null;
+  const [editingName, setEditingName] = useState(false);
 
   const addDay = async () => {
     const index = days?.length ?? 0;
@@ -41,7 +42,34 @@ export function TripView({ tripId, onBack }: { tripId: string; onBack: () => voi
   return (
     <section aria-label={trip.name}>
       <div className="row spread">
-        <h2>{trip.name}</h2>
+        {editingName ? (
+          <input
+            autoFocus
+            aria-label={t('newTripName')}
+            defaultValue={trip.name}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter') (e.target as HTMLInputElement).blur();
+            }}
+            onBlur={(e) => {
+              const name = e.target.value.trim();
+              if (name && name !== trip.name)
+                void dispatch({ t: 'trip/update', id: trip.id, patch: { name }, prev: { name: trip.name } });
+              setEditingName(false);
+            }}
+          />
+        ) : (
+          <div className="row" style={{ gap: '0.3rem' }}>
+            <h2>{trip.name}</h2>
+            <button
+              type="button"
+              className="btn-ghost"
+              aria-label={`${t('renameTrip')}: ${trip.name}`}
+              onClick={() => setEditingName(true)}
+            >
+              ✎
+            </button>
+          </div>
+        )}
         <button type="button" onClick={onBack}>
           {t('back')}
         </button>

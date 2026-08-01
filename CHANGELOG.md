@@ -6,6 +6,10 @@ Design-phase history (PRs #1–#4) lives in DECISIONS.md and the PRs themselves;
 
 ## [Unreleased]
 
+### Added — trip rename (PR #24)
+
+- Trip names are now editable: ✎ next to the title (Enter or leaving the field saves; blank names are rejected).
+
 ### Added — M1: anchored stops (PR #22)
 
 - **Pin a stop's start time** (📌 on any stop) — reservations and tours no longer drift when earlier plans change.
