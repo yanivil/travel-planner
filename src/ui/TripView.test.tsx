@@ -19,7 +19,7 @@ describe('TripView', () => {
       { id: 'd1', tripId: 'trip-1', index: 0, title: 'Thursday', startMin: 480, zone: 'Asia/Jerusalem' },
       { id: 'd2', tripId: 'trip-1', index: 1, title: 'Friday', startMin: 480, zone: 'Asia/Jerusalem' },
     ]);
-    await db.stops.add({ id: 's1', dayId: 'd1', index: 0, name: 'Banias', kind: 'activity', durationMin: 120, legAfterMin: null });
+    await db.stops.add({ id: 's1', dayId: 'd1', index: 0, name: 'Banias', kind: 'activity', durationMin: 120, legAfterMin: null, anchorStartMin: null });
 
     render(<TripView tripId="trip-1" onBack={() => {}} />);
 
@@ -33,7 +33,7 @@ describe('TripView', () => {
       { id: 'd1', tripId: 'trip-1', index: 0, title: 'Thursday', startMin: 480, zone: 'Asia/Jerusalem' },
       { id: 'd2', tripId: 'trip-1', index: 1, title: 'Friday', startMin: 540, zone: 'Asia/Jerusalem' },
     ]);
-    await db.stops.add({ id: 's2', dayId: 'd2', index: 0, name: 'Timna', kind: 'activity', durationMin: 60, legAfterMin: null });
+    await db.stops.add({ id: 's2', dayId: 'd2', index: 0, name: 'Timna', kind: 'activity', durationMin: 60, legAfterMin: null, anchorStartMin: null });
     const user = userEvent.setup();
     render(<TripView tripId="trip-1" onBack={() => {}} />);
 
@@ -52,6 +52,34 @@ describe('TripView', () => {
     const tab = await screen.findByRole('button', { name: 'Day 1' });
     expect(tab).toHaveAttribute('aria-pressed', 'true');
     expect(await db.days.count()).toBe(1);
+  });
+
+  test('renaming the trip commits on blur and updates the heading', async () => {
+    const user = userEvent.setup();
+    render(<TripView tripId="trip-1" onBack={() => {}} />);
+    await screen.findByRole('heading', { name: 'North weekend' });
+
+    await user.click(screen.getByRole('button', { name: 'Rename trip: North weekend' }));
+    const input = screen.getByLabelText('Trip name');
+    await user.clear(input);
+    await user.type(input, 'Golan 2026');
+    await user.tab();
+
+    expect(await screen.findByRole('heading', { name: 'Golan 2026' })).toBeInTheDocument();
+    expect((await db.trips.get('trip-1'))?.name).toBe('Golan 2026');
+  });
+
+  test('a blank rename is rejected and the old name stays', async () => {
+    const user = userEvent.setup();
+    render(<TripView tripId="trip-1" onBack={() => {}} />);
+    await screen.findByRole('heading', { name: 'North weekend' });
+
+    await user.click(screen.getByRole('button', { name: 'Rename trip: North weekend' }));
+    await user.clear(screen.getByLabelText('Trip name'));
+    await user.tab();
+
+    expect(await screen.findByRole('heading', { name: 'North weekend' })).toBeInTheDocument();
+    expect((await db.trips.get('trip-1'))?.name).toBe('North weekend');
   });
 
   test('back button calls onBack', async () => {

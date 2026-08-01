@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test } from 'vitest';
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n, { setLang } from '../i18n';
 import { db } from '../db/db';
@@ -25,6 +25,7 @@ function stop(id: string, index: number, patch: Partial<Stop> = {}): Stop {
     kind: 'activity',
     durationMin: 60,
     legAfterMin: null,
+    anchorStartMin: null,
     ...patch,
   };
 }
@@ -90,8 +91,6 @@ describe('DayTimeline behavior (tested via the DOM, never internals)', () => {
     render(<DayTimeline dayId={day.id} />);
     await screen.findByText('09:00–09:30');
 
-    // one change event, not per-keystroke typing: the input is controlled by an
-    // async live query, so keystroke streams race the store round-trip
     fireEvent.change(screen.getByLabelText('Duration (min) — Alpha'), { target: { value: '90' } });
 
     expect(await screen.findByText('09:30–10:00')).toBeInTheDocument();
@@ -135,6 +134,82 @@ describe('DayTimeline behavior (tested via the DOM, never internals)', () => {
     fireEvent.change(screen.getByLabelText(/Day start/), { target: { value: '09:30' } });
 
     expect(await screen.findByText('09:30–10:30')).toBeInTheDocument();
+  });
+
+  test('pinning a stop then moving the pin later shows slack and pins the start (D-025)', async () => {
+    await db.stops.bulkAdd([
+      stop('a', 0, { name: 'Drive', durationMin: 60 }),
+      stop('b', 1, { name: 'Lunch', durationMin: 60 }),
+    ]);
+    const user = userEvent.setup();
+    render(<DayTimeline dayId={day.id} />);
+    await screen.findByText('09:00–10:00');
+
+    await user.click(screen.getByRole('button', { name: 'Pin time: Lunch' }));
+    fireEvent.change(await screen.findByLabelText('Pinned start — Lunch'), {
+      target: { value: '09:45' },
+    });
+
+    expect(await screen.findByText('09:45–10:45')).toBeInTheDocument();
+    expect(screen.getByText(/45 min wait/)).toBeInTheDocument();
+  });
+
+  test('pinning earlier than the chain arrival flags lateness, never shifts silently', async () => {
+    await db.stops.bulkAdd([
+      stop('a', 0, { name: 'Drive', durationMin: 60 }),
+      stop('b', 1, { name: 'Tour', durationMin: 90 }),
+    ]);
+    const user = userEvent.setup();
+    render(<DayTimeline dayId={day.id} />);
+    await screen.findByText('09:00–10:30');
+
+    await user.click(screen.getByRole('button', { name: 'Pin time: Tour' }));
+    fireEvent.change(await screen.findByLabelText('Pinned start — Tour'), {
+      target: { value: '08:30' },
+    });
+
+    expect(await screen.findByText('08:30–10:00')).toBeInTheDocument();
+    expect(screen.getByText(/Late by 30 min/)).toBeInTheDocument();
+  });
+
+  test('R-001: an async echo must not clobber digits the user is still typing', async () => {
+    await db.stops.bulkAdd([
+      stop('a', 0, { name: 'Alpha', durationMin: 60 }),
+      stop('b', 1, { name: 'Beta', durationMin: 30 }),
+    ]);
+    render(<DayTimeline dayId={day.id} />);
+    const leg = (await screen.findByLabelText('Drive to next stop (min) — Alpha')) as HTMLInputElement;
+
+    // the user typed two digits; wait for that commit to land...
+    fireEvent.focus(leg);
+    fireEvent.change(leg, { target: { value: '33' } });
+    await waitFor(async () => expect((await db.stops.get('a'))?.legAfterMin).toBe(33));
+
+    // ...then a stale echo of an EARLIER keystroke arrives while still focused
+    await db.stops.update('a', { legAfterMin: 3 });
+    // wait until that echo has demonstrably re-rendered (the leg row shows it)...
+    await screen.findByText(/🚗 3 min/);
+
+    // ...the focused field must still hold the user's draft, not the echo
+    expect(leg.value).toBe('33');
+    fireEvent.blur(leg);
+  });
+
+  test('R-001: typing a multi-digit drive time keeps every keystroke end-to-end', async () => {
+    await db.stops.bulkAdd([
+      stop('a', 0, { name: 'Alpha', durationMin: 60 }),
+      stop('b', 1, { name: 'Beta', durationMin: 30 }),
+    ]);
+    const user = userEvent.setup();
+    render(<DayTimeline dayId={day.id} />);
+    const leg = (await screen.findByLabelText('Drive to next stop (min) — Alpha')) as HTMLInputElement;
+
+    await user.clear(leg);
+    await user.type(leg, '333');
+    await user.tab();
+
+    await waitFor(async () => expect((await db.stops.get('a'))?.legAfterMin).toBe(333));
+    expect(await screen.findByText(/333 min/)).toBeInTheDocument();
   });
 
   test('renders Hebrew with RTL document direction (component-level RTL assertion)', async () => {

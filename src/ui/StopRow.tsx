@@ -2,8 +2,9 @@ import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
 import { dispatch } from '../store/ops';
-import { formatRange, formatHM } from '../domain/time';
+import { formatRange, formatHM, parseHM } from '../domain/time';
 import { wazeUrl } from '../domain/waze';
+import { NumberField } from './NumberField';
 import type { ScheduledStop } from '../domain/schedule';
 import type { Stop } from '../domain/types';
 
@@ -30,7 +31,10 @@ export function StopRow({ stop, scheduled, isFirst, isLast, onMoveUp, onMoveDown
       className="stop-item-wrap"
     >
       <div className="stop-item">
-        <div className="stop-times">{formatRange(scheduled.startMin, scheduled.endMin)}</div>
+        <div className="stop-times">
+          {stop.anchorStartMin != null && <span aria-hidden="true">📌 </span>}
+          {formatRange(scheduled.startMin, scheduled.endMin)}
+        </div>
         <div className={`stop-card kind-${stop.kind}`}>
           <div className="row">
             <input
@@ -43,38 +47,67 @@ export function StopRow({ stop, scheduled, isFirst, isLast, onMoveUp, onMoveDown
               }}
             />
           </div>
+          {(scheduled.slackBeforeMin > 0 || scheduled.lateByMin > 0) && (
+            <div className="chips-row">
+              {scheduled.slackBeforeMin > 0 && (
+                <span className="chip slack">⏱ {t('slackWait', { m: scheduled.slackBeforeMin })}</span>
+              )}
+              {scheduled.lateByMin > 0 && (
+                <span className="chip bad">⚠ {t('lateBy', { m: scheduled.lateByMin })}</span>
+              )}
+            </div>
+          )}
           <div className="stop-fields">
             <label>
               {t('durationMin')}
-              <input
-                type="number"
-                min={0}
-                aria-label={`${t('durationMin')} — ${stop.name}`}
+              <NumberField
                 value={stop.durationMin}
-                onChange={(e) =>
-                  updateStop(
-                    { durationMin: Math.max(0, Number(e.target.value)) },
-                    { durationMin: stop.durationMin },
-                  )
-                }
+                ariaLabel={`${t('durationMin')} — ${stop.name}`}
+                onCommit={(v) => updateStop({ durationMin: v }, { durationMin: stop.durationMin })}
               />
             </label>
             {!isLast && (
               <label>
                 {t('legMin')}
-                <input
-                  type="number"
-                  min={0}
-                  aria-label={`${t('legMin')} — ${stop.name}`}
+                <NumberField
                   value={stop.legAfterMin ?? 0}
+                  ariaLabel={`${t('legMin')} — ${stop.name}`}
+                  onCommit={(v) =>
+                    updateStop({ legAfterMin: v > 0 ? v : null }, { legAfterMin: stop.legAfterMin })
+                  }
+                />
+              </label>
+            )}
+            {stop.anchorStartMin != null && (
+              <label>
+                {t('anchorTime')}
+                <input
+                  type="time"
+                  aria-label={`${t('anchorTime')} — ${stop.name}`}
+                  value={formatHM(stop.anchorStartMin)}
                   onChange={(e) => {
-                    const v = Math.max(0, Number(e.target.value));
-                    updateStop({ legAfterMin: v > 0 ? v : null }, { legAfterMin: stop.legAfterMin });
+                    const parsed = parseHM(e.target.value);
+                    if (parsed != null)
+                      updateStop({ anchorStartMin: parsed }, { anchorStartMin: stop.anchorStartMin });
                   }}
                 />
               </label>
             )}
             <div className="stop-actions">
+              <button
+                type="button"
+                className="btn-ghost pin-btn"
+                aria-label={`${t('anchor')}: ${stop.name}`}
+                aria-pressed={stop.anchorStartMin != null}
+                onClick={() =>
+                  updateStop(
+                    { anchorStartMin: stop.anchorStartMin != null ? null : scheduled.startMin },
+                    { anchorStartMin: stop.anchorStartMin },
+                  )
+                }
+              >
+                📌
+              </button>
               <button
                 type="button"
                 className="btn-ghost"

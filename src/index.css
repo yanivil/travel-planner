@@ -102,6 +102,16 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 }
 .leg-row a { color: var(--accent); font-weight: 600; text-decoration: none; border: 1px solid var(--line); border-radius: 6px; padding: 0.05rem 0.5rem; background: var(--panel); }
 
+.chips-row { display: flex; flex-wrap: wrap; gap: 0.35rem; margin-block-start: 0.35rem; }
+.chip {
+  display: inline-flex; align-items: center; gap: 0.25rem;
+  font-size: 0.8rem; padding: 0.1rem 0.55rem; border-radius: 999px;
+  background: var(--panel-2); border: 1px solid var(--line); color: var(--muted);
+}
+.chip.slack { color: var(--sand); }
+.chip.bad { color: var(--danger); border-color: var(--danger); background: transparent; font-weight: 600; }
+.pin-btn[aria-pressed='true'] { color: var(--accent); border-color: var(--accent); }
+
 .add-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: end; margin-block-start: 1rem; }
 .add-form label { display: grid; gap: 0.2rem; font-size: 0.85rem; color: var(--muted); }
 .add-form input[type='number'] { width: 6rem; }
