@@ -16,4 +16,4 @@ An offline-first PWA for planning trips with family and friends — in Israel an
 
 ## Status
 
-**Design phase.** Spec v0.1 approved and merged (PR #1); testing strategy defined (PR #2). Implementation starts with milestone M0 (timeline skeleton + test/CI scaffold). See the roadmap in [PRODUCT_DESIGN.md §8](PRODUCT_DESIGN.md#8-roadmap).
+**Design phase.** Spec v0.1 (PR #1) + testing strategy (PR #2) merged; **v0.2 competitive-research revision** in review (PR #3) — market gaps folded into the roadmap, offline maps moved to PMTiles/OPFS, sync upgrade path set to PowerSync (D-014…D-017). Implementation starts with milestone M0 (timeline skeleton + test/CI scaffold) after approval. See the roadmap in [PRODUCT_DESIGN.md §8](PRODUCT_DESIGN.md#8-roadmap).
