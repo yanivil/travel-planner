@@ -197,11 +197,15 @@ describe('DayTimeline behavior (tested via the DOM, never internals)', () => {
     expect(screen.getByRole('button', { name: 'Acknowledged (1)' })).toBeInTheDocument();
     expect(await db.dismissals.count()).toBe(1);
 
-    // and it can be re-raised
+    // and it can be re-raised — settle the data layer first, then the UI
+    // (CI machines are slow enough that the Dexie→liveQuery hop can exceed
+    // the default 1s findBy deadline; these waits are event-driven, not sleeps)
     await user.click(screen.getByRole('button', { name: 'Acknowledged (1)' }));
     await user.click(screen.getByRole('button', { name: 'Re-raise' }));
-    expect(await screen.findByText('The day ends 30 min after the 10:00 curfew')).toBeInTheDocument();
-    expect(await db.dismissals.count()).toBe(0);
+    await waitFor(async () => expect(await db.dismissals.count()).toBe(0), { timeout: 3000 });
+    expect(
+      await screen.findByText('The day ends 30 min after the 10:00 curfew', {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
   });
 
   test('opening the details editor and setting a last-entry raises the arrival conflict', async () => {
