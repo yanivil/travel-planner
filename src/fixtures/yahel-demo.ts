@@ -96,6 +96,9 @@ export async function loadDemoTrip(target: TiyulDB = db): Promise<string> {
       startMin: demoDay.startMin,
       zone: ZONE,
       curfewMin: demoDay.curfewMin ?? null,
+      lat: 29.878,
+      lng: 35.096,
+      locationName: 'קיבוץ יהל (ערבה)',
     });
     demoDay.stops.forEach((demoStop, stopIndex) => {
       stops.push({
@@ -121,6 +124,9 @@ export async function loadDemoTrip(target: TiyulDB = db): Promise<string> {
       name: 'סופ״ש ביהל (הדגמה)',
       createdAt: new Date().toISOString(),
       maxDriveStretchMin: 120,
+      // the real family drives on Shabbat — checks stay off in the demo, the
+      // zmanim badges still show (flip to 'soft' to watch the rule fire)
+      observance: 'none',
     });
     await target.days.bulkAdd(days);
     await target.stops.bulkAdd(stops);

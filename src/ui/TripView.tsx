@@ -5,6 +5,7 @@ import { db } from '../db/db';
 import { dispatch } from '../store/ops';
 import { DayTimeline } from './DayTimeline';
 import { NumberField } from './NumberField';
+import type { Trip } from '../domain/types';
 
 const DEFAULT_DAY_START_MIN = 8 * 60;
 const DEFAULT_ZONE = 'Asia/Jerusalem';
@@ -34,6 +35,9 @@ export function TripView({ tripId, onBack }: { tripId: string; onBack: () => voi
         startMin: DEFAULT_DAY_START_MIN,
         zone: DEFAULT_ZONE,
         curfewMin: null,
+        lat: null,
+        lng: null,
+        locationName: null,
       },
     });
     setSelectedDayId(id);
@@ -73,6 +77,25 @@ export function TripView({ tripId, onBack }: { tripId: string; onBack: () => voi
           </div>
         )}
         <div className="row" style={{ gap: '0.4rem' }}>
+          <label className="row" style={{ gap: '0.3rem' }}>
+            <span className="muted">{t('observance')}</span>
+            <select
+              aria-label={t('observance')}
+              value={trip.observance}
+              onChange={(e) =>
+                void dispatch({
+                  t: 'trip/update',
+                  id: trip.id,
+                  patch: { observance: e.target.value as Trip['observance'] },
+                  prev: { observance: trip.observance },
+                })
+              }
+            >
+              <option value="none">{t('obsNone')}</option>
+              <option value="soft">{t('obsSoft')}</option>
+              <option value="hard">{t('obsHard')}</option>
+            </select>
+          </label>
           <label className="row" style={{ gap: '0.3rem' }}>
             <span className="muted">{t('maxStretch')}</span>
             <NumberField

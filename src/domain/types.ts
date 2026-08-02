@@ -3,12 +3,17 @@
 
 export type StopKind = 'activity' | 'meal' | 'lodging' | 'free';
 
+// v4: trip-level Shabbat observance (participant profiles are M2, spec §4.5).
+export type Observance = 'none' | 'soft' | 'hard';
+
 export interface Trip {
   id: string;
   name: string;
   createdAt: string; // ISO, audit only
   // v3: group tolerance for continuous driving (participant profiles are M2).
   maxDriveStretchMin: number | null;
+  // v4: decides whether SHABBAT_CONFLICT fires, and how hard.
+  observance: Observance;
 }
 
 export interface Day {
@@ -21,6 +26,10 @@ export interface Day {
   zone: string; // IANA zone, e.g. 'Asia/Jerusalem'
   // v3: "back home/hotel by" — CURFEW_MISS raises when the day ends later.
   curfewMin: number | null;
+  // v4: the day's (lodging) location — feeds offline zmanim (D-006/D-027).
+  lat: number | null;
+  lng: number | null;
+  locationName: string | null;
 }
 
 export interface Stop {

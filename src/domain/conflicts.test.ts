@@ -15,11 +15,14 @@ import {
 
 const trip = (patch: Partial<ConflictTripSettings> = {}): ConflictTripSettings => ({
   maxDriveStretchMin: null,
+  observance: 'none',
   ...patch,
 });
 const day = (patch: Partial<ConflictDay> = {}): ConflictDay => ({
   id: 'd1',
   curfewMin: null,
+  candleMin: null,
+  havdalahMin: null,
   ...patch,
 });
 
@@ -232,6 +235,76 @@ describe('DRIVE_STRETCH_EXCEEDED (soft)', () => {
 
   test('no limit configured → never fires', () => {
     expect(run(480, [{ id: 'a', durationMin: 30, legAfterMin: 600 }, { id: 'b', durationMin: 1 }])).toEqual([]);
+  });
+});
+
+describe('SHABBAT_CONFLICT (D-027) — driving vs candle-lighting/havdalah', () => {
+  // Friday shape: dinner ends late at the lodging (fine), but one leg arrives
+  // after candles. candleMin 1126 = the real Yahel value for 2026-08-28.
+  const fridayStops: StopSpec[] = [
+    { id: 'pool', name: 'Pool', durationMin: 120, legAfterMin: 30 }, // 16:00–18:00, arrive 18:30 < 18:46 ✓
+    { id: 'lookout', name: 'Lookout', durationMin: 30, legAfterMin: 20 }, // 18:30–19:00, arrive 19:20 ✗
+    { id: 'dinner', name: 'Dinner', durationMin: 120 }, // runs past candles at the lodging — NOT a conflict
+  ];
+
+  test('a leg arriving after candle-lighting flags the stop you leave (soft by default)', () => {
+    const conflicts = run(16 * 60, fridayStops, trip({ observance: 'soft' }), day({ candleMin: 1126 }));
+    expect(conflicts).toHaveLength(1);
+    expect(conflicts[0]).toMatchObject({
+      rule: 'SHABBAT_CONFLICT',
+      severity: 'soft',
+      stopIds: ['lookout'],
+      messageKey: 'conflictShabbatEve',
+      messageParams: { s: 'Lookout', t: '18:46' },
+    });
+  });
+
+  test('hard observance escalates the same situation to hard', () => {
+    const conflicts = run(16 * 60, fridayStops, trip({ observance: 'hard' }), day({ candleMin: 1126 }));
+    expect(conflicts[0]).toMatchObject({ rule: 'SHABBAT_CONFLICT', severity: 'hard' });
+  });
+
+  test("observance 'none' silences the rule even with zmanim present", () => {
+    expect(run(16 * 60, fridayStops, trip(), day({ candleMin: 1126 }))).toEqual([]);
+  });
+
+  test('dinner running past candles at the lodging is NOT a conflict (no drive)', () => {
+    const stops: StopSpec[] = [
+      { id: 'pool', name: 'Pool', durationMin: 120, legAfterMin: 30 }, // arrive 18:30 ✓
+      { id: 'dinner', name: 'Dinner', durationMin: 180 }, // 18:30–21:30, past candles, no leg
+    ];
+    expect(run(16 * 60, stops, trip({ observance: 'hard' }), day({ candleMin: 1126 }))).toEqual([]);
+  });
+
+  test('boundary: arriving exactly at candle-lighting is fine', () => {
+    const stops: StopSpec[] = [
+      { id: 'a', name: 'A', durationMin: 106, legAfterMin: 20 }, // 16:00–17:46, arrive 18:06... adjust below
+      { id: 'b', name: 'B', durationMin: 30 },
+    ];
+    // arrive exactly 1126: start 16:00 (960), duration 146, leg 20 → end 1106, arrive 1126
+    stops[0]!.durationMin = 146;
+    expect(run(960, stops, trip({ observance: 'hard' }), day({ candleMin: 1126 }))).toEqual([]);
+  });
+
+  test('motzei: departing before havdalah flags the stop you leave; at/after is fine', () => {
+    // havdalah 1182 (19:42, real Yahel value for 2026-08-29)
+    const departsEarly: StopSpec[] = [
+      { id: 'pool', name: 'Pool', durationMin: 60, legAfterMin: 45 }, // ends 19:00 < 19:42 → drive on Shabbat
+      { id: 'eilat', name: 'Eilat', durationMin: 120 },
+    ];
+    const conflicts = run(18 * 60, departsEarly, trip({ observance: 'soft' }), day({ havdalahMin: 1182 }));
+    expect(conflicts[0]).toMatchObject({
+      rule: 'SHABBAT_CONFLICT',
+      stopIds: ['pool'],
+      messageKey: 'conflictShabbatOut',
+      messageParams: { t: '19:42' },
+    });
+
+    const departsAfter: StopSpec[] = [
+      { id: 'pool', name: 'Pool', durationMin: 102, legAfterMin: 45 }, // ends exactly 19:42
+      { id: 'eilat', name: 'Eilat', durationMin: 120 },
+    ];
+    expect(run(18 * 60, departsAfter, trip({ observance: 'hard' }), day({ havdalahMin: 1182 }))).toEqual([]);
   });
 });
 

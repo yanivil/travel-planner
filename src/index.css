@@ -135,6 +135,14 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .wd-btn[aria-pressed='true'] { background: var(--danger); color: var(--accent-ink); border-color: var(--danger); }
 .clear-btn { min-height: 1.6rem; padding: 0 0.4rem; font-size: 0.8rem; }
 
+.chip.sandy { color: var(--sand); border-color: var(--sand); }
+.shabbat-band {
+  list-style: none; margin: 0.45rem 0; padding: 0.45rem 0.8rem;
+  border-radius: 8px; background: var(--panel-2);
+  border-inline-start: 4px solid var(--sand); color: var(--sand);
+  font-size: 0.9rem; font-weight: 600; display: flex; gap: 0.5rem; align-items: center;
+}
+
 .add-form { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: end; margin-block-start: 1rem; }
 .add-form label { display: grid; gap: 0.2rem; font-size: 0.85rem; color: var(--muted); }
 .add-form input[type='number'] { width: 6rem; }

@@ -15,6 +15,8 @@ import { db } from '../db/db';
 import { dispatch } from '../store/ops';
 import { computeDaySchedule } from '../domain/schedule';
 import { computeConflicts, visibleConflicts, type Conflict } from '../domain/conflicts';
+import { zmanimForDate } from '../domain/shabbat';
+import { PRESET_LOCATIONS, parseLatLng } from '../domain/locations';
 import { formatHM, parseHM } from '../domain/time';
 import type { StopKind } from '../domain/types';
 import { StopRow, type ConflictChip } from './StopRow';
@@ -23,7 +25,8 @@ import { ConflictsPanel } from './ConflictsPanel';
 const KINDS: StopKind[] = ['activity', 'meal', 'lodging', 'free'];
 
 export function DayTimeline({ dayId }: { dayId: string }) {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
+  const i18nLang = () => i18n.language ?? 'he';
   const day = useLiveQuery(() => db.days.get(dayId), [dayId]);
   const stops = useLiveQuery(
     () => db.stops.where('dayId').equals(dayId).sortBy('index'),
@@ -54,14 +57,45 @@ export function DayTimeline({ dayId }: { dayId: string }) {
   const schedule = computeDaySchedule(day.startMin, stops);
   const scheduleById = new Map(schedule.map((s) => [s.stopId, s]));
 
+  // Zmanim are informational always; they become conflicts only per the
+  // trip's observance setting (D-027).
+  const zman =
+    day.date && day.lat != null && day.lng != null
+      ? zmanimForDate(day.date, day.lat, day.lng, day.zone, day.locationName)
+      : { candleMin: null, havdalahMin: null };
+
   // The engine runs on every render — the recompute is pure and cheap, so
   // conflicts can never go stale (spec §4.2).
   const conflicts = computeConflicts(
-    { maxDriveStretchMin: trip?.maxDriveStretchMin ?? null },
-    { id: day.id, date: day.date, curfewMin: day.curfewMin },
+    { maxDriveStretchMin: trip?.maxDriveStretchMin ?? null, observance: trip?.observance ?? 'none' },
+    {
+      id: day.id,
+      date: day.date,
+      curfewMin: day.curfewMin,
+      candleMin: zman.candleMin,
+      havdalahMin: zman.havdalahMin,
+    },
     stops,
     schedule,
   );
+
+  // The Shabbat band sits before the first stop starting at/after candles
+  // (or closes the list when the whole plan starts earlier).
+  const bandIndex =
+    zman.candleMin == null
+      ? -1
+      : (() => {
+          const idx = schedule.findIndex((s) => s.startMin >= zman.candleMin!);
+          return idx === -1 ? stops.length : idx;
+        })();
+
+  const presetId =
+    day.lat != null && day.lng != null
+      ? (PRESET_LOCATIONS.find(
+          (p) => Math.abs(p.lat - day.lat!) < 0.002 && Math.abs(p.lng - day.lng!) < 0.002,
+        )?.id ?? 'custom')
+      : '';
+  const isHe = i18nLang().startsWith('he');
   const { active, acknowledged } = visibleConflicts(
     conflicts,
     (dismissals ?? []).map((d) => ({ id: d.id, severity: d.severity })),
@@ -169,6 +203,66 @@ export function DayTimeline({ dayId }: { dayId: string }) {
             </button>
           )}
         </label>
+        <label className="row" style={{ gap: '0.4rem' }}>
+          <span className="muted">{t('location')}</span>
+          <select
+            aria-label={t('location')}
+            value={presetId}
+            onChange={(e) => {
+              const id = e.target.value;
+              if (id === '') {
+                updateDay(
+                  { lat: null, lng: null, locationName: null },
+                  { lat: day.lat, lng: day.lng, locationName: day.locationName },
+                );
+                return;
+              }
+              const p = PRESET_LOCATIONS.find((x) => x.id === id);
+              if (p)
+                updateDay(
+                  { lat: p.lat, lng: p.lng, locationName: isHe ? p.he : p.en },
+                  { lat: day.lat, lng: day.lng, locationName: day.locationName },
+                );
+            }}
+          >
+            <option value="">—</option>
+            {PRESET_LOCATIONS.map((p) => (
+              <option key={p.id} value={p.id}>
+                {isHe ? p.he : p.en}
+              </option>
+            ))}
+            {presetId === 'custom' && (
+              <option value="custom" disabled>
+                {day.locationName ?? `${day.lat?.toFixed(3)},${day.lng?.toFixed(3)}`}
+              </option>
+            )}
+          </select>
+          <input
+            aria-label={t('locPaste')}
+            placeholder={t('locPaste')}
+            size={18}
+            onBlur={(e) => {
+              const parsed = parseLatLng(e.target.value);
+              if (parsed) {
+                updateDay(
+                  { lat: parsed.lat, lng: parsed.lng, locationName: null },
+                  { lat: day.lat, lng: day.lng, locationName: day.locationName },
+                );
+                e.target.value = '';
+              }
+            }}
+          />
+        </label>
+        {zman.candleMin != null && (
+          <span className="chip sandy" title={t('zmanApprox')}>
+            🕯 {t('candleAt', { t: formatHM(zman.candleMin) })}
+          </span>
+        )}
+        {zman.havdalahMin != null && (
+          <span className="chip sandy" title={t('zmanApprox')}>
+            ✨ {t('havdalahAt', { t: formatHM(zman.havdalahMin) })}
+          </span>
+        )}
       </div>
 
       {stops.length === 0 && <p className="muted">{t('noStops')}</p>}
@@ -180,18 +274,30 @@ export function DayTimeline({ dayId }: { dayId: string }) {
               const sched = scheduleById.get(stop.id);
               if (!sched) return null;
               return (
-                <StopRow
-                  key={stop.id}
-                  stop={stop}
-                  scheduled={sched}
-                  isFirst={i === 0}
-                  isLast={i === stops.length - 1}
-                  conflictChips={chipsByStop.get(stop.id) ?? []}
-                  onMoveUp={() => moveStop(i, i - 1)}
-                  onMoveDown={() => moveStop(i, i + 1)}
-                />
+                <>
+                  {i === bandIndex && (
+                    <li key={`band-${stop.id}`} className="shabbat-band" aria-label={t('shabbatEnters', { t: formatHM(zman.candleMin ?? 0) })}>
+                      🕯 {t('shabbatEnters', { t: formatHM(zman.candleMin ?? 0) })}
+                    </li>
+                  )}
+                  <StopRow
+                    key={stop.id}
+                    stop={stop}
+                    scheduled={sched}
+                    isFirst={i === 0}
+                    isLast={i === stops.length - 1}
+                    conflictChips={chipsByStop.get(stop.id) ?? []}
+                    onMoveUp={() => moveStop(i, i - 1)}
+                    onMoveDown={() => moveStop(i, i + 1)}
+                  />
+                </>
               );
             })}
+            {bandIndex === stops.length && stops.length > 0 && (
+              <li className="shabbat-band">
+                🕯 {t('shabbatEnters', { t: formatHM(zman.candleMin ?? 0) })}
+              </li>
+            )}
           </ol>
         </SortableContext>
       </DndContext>

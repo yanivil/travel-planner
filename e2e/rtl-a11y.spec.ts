@@ -31,6 +31,11 @@ test('the demo Yahel trip loads and renders a Hebrew timeline', async ({ page })
   // catches it, in Hebrew, out of the box
   await page.getByRole('button', { name: 'שבת — בריכה ואילת' }).click();
   await expect(page.getByText(/היום מסתיים 30 דק׳ אחרי שעת החזרה \(22:00\)/).first()).toBeVisible();
+
+  // Friday carries real offline zmanim for Yahel: candle badge + Shabbat band
+  await page.getByRole('button', { name: 'שישי — תמנע' }).click();
+  await expect(page.getByText('הדלקת נרות 18:46')).toBeVisible();
+  await expect(page.getByText('שבת נכנסת · 18:46')).toBeVisible();
 });
 
 test('trips screen and timeline have no serious accessibility violations', async ({ page }) => {

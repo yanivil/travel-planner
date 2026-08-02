@@ -7,7 +7,8 @@ import type { Trip, Day, Stop, Dismissal } from '../domain/types';
 // v2 (M1): Stop.anchorStartMin — null for floaters, wall-clock minutes when pinned.
 // v3 (M1 #14): opening-hours fields on stops, Day.curfewMin,
 //              Trip.maxDriveStretchMin, and the dismissals table (D-020).
-export const SCHEMA_VERSION = 3;
+// v4 (M1 #15): Day.lat/lng/locationName for zmanim, Trip.observance (D-027).
+export const SCHEMA_VERSION = 4;
 export const DB_NAME = 'tiyul';
 
 const STORES_V1 = {
@@ -49,7 +50,8 @@ export function defineSchemaV2(dexie: Dexie): void {
     });
 }
 
-export function defineSchema(dexie: Dexie): void {
+/** The v3 schema exactly as shipped with the constraint engine — for migration tests. */
+export function defineSchemaV3(dexie: Dexie): void {
   defineSchemaV2(dexie);
   dexie
     .version(3)
@@ -75,6 +77,30 @@ export function defineSchema(dexie: Dexie): void {
         .toCollection()
         .modify((trip: Record<string, unknown>) => {
           if (!('maxDriveStretchMin' in trip)) trip.maxDriveStretchMin = null;
+        });
+    });
+}
+
+export function defineSchema(dexie: Dexie): void {
+  defineSchemaV3(dexie);
+  dexie
+    .version(4)
+    .stores(STORES_V3)
+    .upgrade(async (tx) => {
+      await tx
+        .table('days')
+        .toCollection()
+        .modify((day: Record<string, unknown>) => {
+          if (!('lat' in day)) day.lat = null;
+          if (!('lng' in day)) day.lng = null;
+          if (!('locationName' in day)) day.locationName = null;
+        });
+      await tx
+        .table('trips')
+        .toCollection()
+        .modify((trip: Record<string, unknown>) => {
+          // existing trips stay quiet by default — observance is opt-in (D-027)
+          if (!('observance' in trip)) trip.observance = 'none';
         });
     });
 }

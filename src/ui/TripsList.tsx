@@ -17,7 +17,7 @@ export function TripsList({ onOpen }: { onOpen: (tripId: string) => void }) {
     const id = crypto.randomUUID();
     await dispatch({
       t: 'trip/add',
-      trip: { id, name: trimmed, createdAt: new Date().toISOString(), maxDriveStretchMin: null },
+      trip: { id, name: trimmed, createdAt: new Date().toISOString(), maxDriveStretchMin: null, observance: 'none' },
     });
     setName('');
     onOpen(id);

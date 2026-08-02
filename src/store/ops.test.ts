@@ -10,8 +10,8 @@ beforeEach(() => {
   history.length = 0;
 });
 
-const trip: Trip = { id: 'trip-1', name: 'Test', createdAt: '2026-08-01T00:00:00.000Z', maxDriveStretchMin: null };
-const day: Day = { id: 'day-1', tripId: trip.id, index: 0, title: 'Day 1', startMin: 480, zone: 'Asia/Jerusalem', curfewMin: null };
+const trip: Trip = { id: 'trip-1', name: 'Test', createdAt: '2026-08-01T00:00:00.000Z', maxDriveStretchMin: null, observance: 'none' };
+const day: Day = { id: 'day-1', tripId: trip.id, index: 0, title: 'Day 1', startMin: 480, zone: 'Asia/Jerusalem', curfewMin: null, lat: null, lng: null, locationName: null };
 
 function stop(id: string, index: number, patch: Partial<Stop> = {}): Stop {
   return {
