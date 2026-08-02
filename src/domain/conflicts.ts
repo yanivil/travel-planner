@@ -1,4 +1,5 @@
 import type { ScheduledStop } from './schedule';
+import type { Observance } from './types';
 import { formatHM } from './time';
 
 // The constraint engine (spec §4.2, D-020, issue #14). Pure and total: given a
@@ -16,7 +17,8 @@ export type RuleId =
   | 'ARRIVE_BEFORE_OPEN'
   | 'CLOSED_DAY'
   | 'CURFEW_MISS'
-  | 'DRIVE_STRETCH_EXCEEDED';
+  | 'DRIVE_STRETCH_EXCEEDED'
+  | 'SHABBAT_CONFLICT';
 
 export interface Conflict {
   /** Stable identity: rule + day + subject stops. Params are NOT part of it. */
@@ -42,10 +44,15 @@ export interface ConflictDay {
   id: string;
   date?: string; // ISO YYYY-MM-DD
   curfewMin: number | null;
+  /** Zmanim for this day's location (null when no date/location is set). */
+  candleMin: number | null;
+  havdalahMin: number | null;
 }
 
 export interface ConflictTripSettings {
   maxDriveStretchMin: number | null;
+  /** Trip-level in M1 (participant profiles are M2). Decides SHABBAT_CONFLICT severity. */
+  observance: Observance;
 }
 
 export interface DismissalRecord {
@@ -166,6 +173,40 @@ export function computeConflicts(
       );
     }
   });
+
+  // SHABBAT_CONFLICT (D-027): severity follows the trip's observance setting;
+  // 'none' disables the checks entirely (zmanim still display informationally).
+  // v1 targets the violation our data can see unambiguously — DRIVING: a leg
+  // arriving after candle-lighting (erev) or departing before havdalah
+  // (motzei). Dinner running past candles at the lodging is not a conflict.
+  if (trip.observance !== 'none') {
+    const sev: Severity = trip.observance === 'hard' ? 'hard' : 'soft';
+    const isDrive = (s: ScheduledStop) => s.legAfterMin != null && s.legAfterMin > 0;
+    if (day.candleMin != null) {
+      const idx = schedule.findIndex((s) => isDrive(s) && s.nextArriveMin! > day.candleMin!);
+      const offender = idx >= 0 ? stops[idx] : undefined;
+      if (offender) {
+        conflicts.push(
+          make('SHABBAT_CONFLICT', sev, day.id, [offender.id], 'conflictShabbatEve', {
+            s: offender.name,
+            t: formatHM(day.candleMin),
+          }),
+        );
+      }
+    }
+    if (day.havdalahMin != null) {
+      const idx = schedule.findIndex((s) => isDrive(s) && s.endMin < day.havdalahMin!);
+      const offender = idx >= 0 ? stops[idx] : undefined;
+      if (offender) {
+        conflicts.push(
+          make('SHABBAT_CONFLICT', sev, day.id, [offender.id], 'conflictShabbatOut', {
+            s: offender.name,
+            t: formatHM(day.havdalahMin),
+          }),
+        );
+      }
+    }
+  }
 
   // CURFEW — the day must end by day.curfewMin.
   const last = schedule[schedule.length - 1];

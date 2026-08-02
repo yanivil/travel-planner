@@ -10,14 +10,14 @@ beforeEach(async () => {
   await Promise.all([db.trips.clear(), db.days.clear(), db.stops.clear(), db.dismissals.clear()]);
   history.length = 0;
   await i18n.changeLanguage('en');
-  await db.trips.add({ id: 'trip-1', name: 'North weekend', createdAt: '2026-08-01T00:00:00.000Z', maxDriveStretchMin: null });
+  await db.trips.add({ id: 'trip-1', name: 'North weekend', createdAt: '2026-08-01T00:00:00.000Z', maxDriveStretchMin: null, observance: 'none' });
 });
 
 describe('TripView', () => {
   test('renders the trip, its day tabs, and the first day timeline by default', async () => {
     await db.days.bulkAdd([
-      { id: 'd1', tripId: 'trip-1', index: 0, title: 'Thursday', startMin: 480, zone: 'Asia/Jerusalem', curfewMin: null },
-      { id: 'd2', tripId: 'trip-1', index: 1, title: 'Friday', startMin: 480, zone: 'Asia/Jerusalem', curfewMin: null },
+      { id: 'd1', tripId: 'trip-1', index: 0, title: 'Thursday', startMin: 480, zone: 'Asia/Jerusalem', curfewMin: null, lat: null, lng: null, locationName: null },
+      { id: 'd2', tripId: 'trip-1', index: 1, title: 'Friday', startMin: 480, zone: 'Asia/Jerusalem', curfewMin: null, lat: null, lng: null, locationName: null },
     ]);
     await db.stops.add({ id: 's1', dayId: 'd1', index: 0, name: 'Banias', kind: 'activity', durationMin: 120, legAfterMin: null, anchorStartMin: null, openMin: null, closeMin: null, lastEntryMin: null, closedWeekdays: null });
 
@@ -30,8 +30,8 @@ describe('TripView', () => {
 
   test('switching day tabs switches the visible timeline', async () => {
     await db.days.bulkAdd([
-      { id: 'd1', tripId: 'trip-1', index: 0, title: 'Thursday', startMin: 480, zone: 'Asia/Jerusalem', curfewMin: null },
-      { id: 'd2', tripId: 'trip-1', index: 1, title: 'Friday', startMin: 540, zone: 'Asia/Jerusalem', curfewMin: null },
+      { id: 'd1', tripId: 'trip-1', index: 0, title: 'Thursday', startMin: 480, zone: 'Asia/Jerusalem', curfewMin: null, lat: null, lng: null, locationName: null },
+      { id: 'd2', tripId: 'trip-1', index: 1, title: 'Friday', startMin: 540, zone: 'Asia/Jerusalem', curfewMin: null, lat: null, lng: null, locationName: null },
     ]);
     await db.stops.add({ id: 's2', dayId: 'd2', index: 0, name: 'Timna', kind: 'activity', durationMin: 60, legAfterMin: null, anchorStartMin: null, openMin: null, closeMin: null, lastEntryMin: null, closedWeekdays: null });
     const user = userEvent.setup();
@@ -80,6 +80,16 @@ describe('TripView', () => {
 
     expect(await screen.findByRole('heading', { name: 'North weekend' })).toBeInTheDocument();
     expect((await db.trips.get('trip-1'))?.name).toBe('North weekend');
+  });
+
+  test('the Shabbat observance setting persists through the op store', async () => {
+    const user = userEvent.setup();
+    render(<TripView tripId="trip-1" onBack={() => {}} />);
+    await screen.findByRole('heading', { name: 'North weekend' });
+
+    await user.selectOptions(screen.getByLabelText('Shabbat observance'), 'soft');
+
+    expect((await db.trips.get('trip-1'))?.observance).toBe('soft');
   });
 
   test('back button calls onBack', async () => {

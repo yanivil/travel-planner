@@ -24,6 +24,7 @@
   "homepage": "https://github.com/yanivil/travel-planner#readme",
   "private": true,
   "dependencies": {
+    "@hebcal/core": "^6.9.1",
     "dexie": "^4.4.4",
     "dexie-react-hooks": "^4.4.0",
     "i18next": "^26.3.6",

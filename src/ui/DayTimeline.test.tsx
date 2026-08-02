@@ -15,6 +15,9 @@ const day: Day = {
   startMin: 480,
   zone: 'Asia/Jerusalem',
   curfewMin: null,
+  lat: null,
+  lng: null,
+  locationName: null,
 };
 
 function stop(id: string, index: number, patch: Partial<Stop> = {}): Stop {
@@ -262,6 +265,45 @@ describe('DayTimeline behavior (tested via the DOM, never internals)', () => {
 
     await waitFor(async () => expect((await db.stops.get('a'))?.legAfterMin).toBe(333));
     expect(await screen.findByText(/333 min/)).toBeInTheDocument();
+  });
+
+  test('a Friday with a location shows the candle badge and the Shabbat band (real Yahel zmanim)', async () => {
+    await db.days.update(day.id, {
+      date: '2026-08-28',
+      lat: 29.878,
+      lng: 35.096,
+      locationName: 'קיבוץ יהל (ערבה)',
+    });
+    await db.stops.add(stop('a', 0, { name: 'Pool', durationMin: 60 }));
+    render(<DayTimeline dayId={day.id} />);
+
+    expect(await screen.findByText(/Candles 18:46/)).toBeInTheDocument();
+    expect(screen.getByText(/Shabbat enters · 18:46/)).toBeInTheDocument();
+  });
+
+  test('observance=soft turns a post-candles drive into a SHABBAT_CONFLICT', async () => {
+    await db.trips.add({
+      id: day.tripId,
+      name: 'T',
+      createdAt: '2026-08-01T00:00:00.000Z',
+      maxDriveStretchMin: null,
+      observance: 'soft',
+    });
+    await db.days.update(day.id, {
+      startMin: 17 * 60,
+      date: '2026-08-28',
+      lat: 29.878,
+      lng: 35.096,
+      locationName: 'קיבוץ יהל (ערבה)',
+    });
+    await db.stops.bulkAdd([
+      stop('a', 0, { name: 'Lookout', durationMin: 60, legAfterMin: 60 }), // arrive 19:00 > 18:46
+      stop('b', 1, { name: 'Lodge', durationMin: 60 }),
+    ]);
+    render(<DayTimeline dayId={day.id} />);
+
+    const msgs = await screen.findAllByText(/Driving after candle-lighting \(18:46\) — leaving "Lookout"/);
+    expect(msgs.length).toBeGreaterThanOrEqual(2);
   });
 
   test('renders Hebrew with RTL document direction (component-level RTL assertion)', async () => {

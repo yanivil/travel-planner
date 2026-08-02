@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import Dexie from 'dexie';
-import { createDb, defineSchema, defineSchemaV1, defineSchemaV2, SCHEMA_VERSION } from './db';
+import { createDb, defineSchema, defineSchemaV1, defineSchemaV2, defineSchemaV3, SCHEMA_VERSION } from './db';
 
 // D-019 / TESTING.md policy 7: the migration harness. When SCHEMA_VERSION bumps
 // to N, this file MUST gain a test that (1) builds a database with the version
@@ -12,8 +12,8 @@ describe('schema versioning harness', () => {
     const name = `tiyul-migration-${crypto.randomUUID()}`;
 
     const first = createDb(name);
-    await first.trips.add({ id: 't1', name: 'Golan', createdAt: '2026-08-01T00:00:00.000Z', maxDriveStretchMin: null });
-    await first.days.add({ id: 'd1', tripId: 't1', index: 0, title: 'Day 1', startMin: 480, zone: 'Asia/Jerusalem', curfewMin: null });
+    await first.trips.add({ id: 't1', name: 'Golan', createdAt: '2026-08-01T00:00:00.000Z', maxDriveStretchMin: null, observance: 'none' });
+    await first.days.add({ id: 'd1', tripId: 't1', index: 0, title: 'Day 1', startMin: 480, zone: 'Asia/Jerusalem', curfewMin: null, lat: null, lng: null, locationName: null });
     await first.stops.add({
       id: 's1',
       dayId: 'd1',
@@ -84,6 +84,32 @@ describe('schema versioning harness', () => {
     expect((await upgraded.days.get('d1'))?.curfewMin).toBeNull();
     expect((await upgraded.trips.get('t1'))?.maxDriveStretchMin).toBeNull();
     expect(await upgraded.dismissals.count()).toBe(0); // table exists and is empty
+    upgraded.close();
+  });
+
+  test('a real v3 (engine) database upgrades to v4: zmanim fields and observance backfilled', async () => {
+    const name = `tiyul-migration-v3-${crypto.randomUUID()}`;
+
+    const v3 = new Dexie(name);
+    defineSchemaV3(v3);
+    await v3.open();
+    await v3.table('trips').add({ id: 't1', name: 'Yahel', createdAt: '2026-08-01T00:00:00.000Z', maxDriveStretchMin: 120 });
+    await v3.table('days').add({ id: 'd1', tripId: 't1', index: 0, title: 'Friday', date: '2026-08-28', startMin: 480, zone: 'Asia/Jerusalem', curfewMin: 1320 });
+    await v3.table('dismissals').add({ id: 'CURFEW_MISS:d1:s1', tripId: 't1', severity: 'soft', createdAt: '2026-08-01T00:00:00.000Z' });
+    v3.close();
+
+    const upgraded = createDb(name);
+    await upgraded.open();
+    expect(upgraded.verno).toBe(SCHEMA_VERSION);
+    const trip = await upgraded.trips.get('t1');
+    expect(trip?.observance).toBe('none'); // existing trips stay quiet (D-027)
+    expect(trip?.maxDriveStretchMin).toBe(120);
+    const dayRow = await upgraded.days.get('d1');
+    expect(dayRow?.lat).toBeNull();
+    expect(dayRow?.lng).toBeNull();
+    expect(dayRow?.locationName).toBeNull();
+    expect(dayRow?.curfewMin).toBe(1320);
+    expect(await upgraded.dismissals.count()).toBe(1); // acknowledgements survive
     upgraded.close();
   });
 

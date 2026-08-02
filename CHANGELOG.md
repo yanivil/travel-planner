@@ -6,6 +6,13 @@ Design-phase history (PRs #1–#4) lives in DECISIONS.md and the PRs themselves;
 
 ## [Unreleased]
 
+### Added — Shabbat & calendar awareness (PR #29)
+
+- **Candle-lighting and havdalah times, computed on your device** (works offline) for any day with a date + location — pick from Israeli presets (Yahel, Jerusalem, Tzfat…) or paste coordinates/a Maps link. Jerusalem automatically uses the 40-minute minhag. Times are marked as halachic approximations.
+- **A Shabbat band on the timeline** ("שבת נכנסת · 18:46") where candle-lighting falls in your day.
+- **New rule: SHABBAT_CONFLICT** — per the trip's new *Shabbat observance* setting (off / warn / strict), the engine flags **driving** after candle-lighting or before havdalah. Dinner running past candles at the lodging is deliberately not a conflict.
+- The demo trip carries real Yahel zmanim (candles 18:46 that Friday); its observance ships **off** — flip it to "warn" to watch the Saturday drive to Eilat get flagged.
+
 ### Added — the constraint engine (PR #28)
 
 - **Tiyul now argues back.** A conflicts drawer under each day lists everything wrong with the plan — hard blockers (red) and soft warnings (amber) — and every conflicted stop carries a chip.
