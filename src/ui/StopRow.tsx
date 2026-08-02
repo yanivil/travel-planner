@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 import { useTranslation } from 'react-i18next';
@@ -8,21 +9,61 @@ import { NumberField } from './NumberField';
 import type { ScheduledStop } from '../domain/schedule';
 import type { Stop } from '../domain/types';
 
+export interface ConflictChip {
+  severity: 'hard' | 'soft';
+  text: string;
+}
+
 interface Props {
   stop: Stop;
   scheduled: ScheduledStop;
   isFirst: boolean;
   isLast: boolean;
+  conflictChips: ConflictChip[];
   onMoveUp: () => void;
   onMoveDown: () => void;
 }
 
-export function StopRow({ stop, scheduled, isFirst, isLast, onMoveUp, onMoveDown }: Props) {
+const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const;
+
+export function StopRow({ stop, scheduled, isFirst, isLast, conflictChips, onMoveUp, onMoveDown }: Props) {
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: stop.id });
+  const [detailsOpen, setDetailsOpen] = useState(false);
 
   const updateStop = (patch: Partial<Stop>, prev: Partial<Stop>) =>
     void dispatch({ t: 'stop/update', id: stop.id, patch, prev });
+
+  const hoursField = (key: 'openMin' | 'closeMin' | 'lastEntryMin', label: string) => (
+    <label>
+      {label}
+      <input
+        type="time"
+        aria-label={`${label} — ${stop.name}`}
+        value={stop[key] != null ? formatHM(stop[key]) : ''}
+        onChange={(e) => {
+          const parsed = parseHM(e.target.value);
+          if (parsed != null) updateStop({ [key]: parsed }, { [key]: stop[key] });
+        }}
+      />
+      {stop[key] != null && (
+        <button
+          type="button"
+          className="btn-ghost clear-btn"
+          aria-label={`${t('clear')} ${label} — ${stop.name}`}
+          onClick={() => updateStop({ [key]: null }, { [key]: stop[key] })}
+        >
+          ✕
+        </button>
+      )}
+    </label>
+  );
+
+  const toggleWeekday = (d: number) => {
+    const current = stop.closedWeekdays ?? [];
+    const next = current.includes(d) ? current.filter((x) => x !== d) : [...current, d].sort();
+    updateStop({ closedWeekdays: next.length ? next : null }, { closedWeekdays: stop.closedWeekdays });
+  };
 
   return (
     <li
@@ -47,14 +88,16 @@ export function StopRow({ stop, scheduled, isFirst, isLast, onMoveUp, onMoveDown
               }}
             />
           </div>
-          {(scheduled.slackBeforeMin > 0 || scheduled.lateByMin > 0) && (
+          {(scheduled.slackBeforeMin > 0 || conflictChips.length > 0) && (
             <div className="chips-row">
               {scheduled.slackBeforeMin > 0 && (
                 <span className="chip slack">⏱ {t('slackWait', { m: scheduled.slackBeforeMin })}</span>
               )}
-              {scheduled.lateByMin > 0 && (
-                <span className="chip bad">⚠ {t('lateBy', { m: scheduled.lateByMin })}</span>
-              )}
+              {conflictChips.map((c, i) => (
+                <span key={i} className={`chip ${c.severity === 'hard' ? 'bad' : 'warn'}`}>
+                  {c.severity === 'hard' ? '✕' : '⚠'} {c.text}
+                </span>
+              ))}
             </div>
           )}
           <div className="stop-fields">
@@ -111,6 +154,15 @@ export function StopRow({ stop, scheduled, isFirst, isLast, onMoveUp, onMoveDown
               <button
                 type="button"
                 className="btn-ghost"
+                aria-label={`${t('details')}: ${stop.name}`}
+                aria-expanded={detailsOpen}
+                onClick={() => setDetailsOpen((v) => !v)}
+              >
+                ⓘ
+              </button>
+              <button
+                type="button"
+                className="btn-ghost"
                 aria-label={`${t('moveUp')}: ${stop.name}`}
                 disabled={isFirst}
                 onClick={onMoveUp}
@@ -145,6 +197,30 @@ export function StopRow({ stop, scheduled, isFirst, isLast, onMoveUp, onMoveDown
               </button>
             </div>
           </div>
+          {detailsOpen && (
+            <div className="details-grid">
+              {hoursField('openMin', t('open'))}
+              {hoursField('closeMin', t('close'))}
+              {hoursField('lastEntryMin', t('lastEntry'))}
+              <label>
+                {t('closedOn')}
+                <span className="wd-row" role="group" aria-label={`${t('closedOn')} — ${stop.name}`}>
+                  {WEEKDAYS.map((d) => (
+                    <button
+                      key={d}
+                      type="button"
+                      className="wd-btn"
+                      aria-pressed={stop.closedWeekdays?.includes(d) ?? false}
+                      aria-label={`${t(`wd${d}`)} — ${stop.name}`}
+                      onClick={() => toggleWeekday(d)}
+                    >
+                      {t(`wds${d}`)}
+                    </button>
+                  ))}
+                </span>
+              </label>
+            </div>
+          )}
         </div>
       </div>
       {!isLast && scheduled.legAfterMin != null && (

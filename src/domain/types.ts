@@ -7,6 +7,8 @@ export interface Trip {
   id: string;
   name: string;
   createdAt: string; // ISO, audit only
+  // v3: group tolerance for continuous driving (participant profiles are M2).
+  maxDriveStretchMin: number | null;
 }
 
 export interface Day {
@@ -17,6 +19,8 @@ export interface Day {
   date?: string; // ISO calendar date, optional in M0
   startMin: number; // wall-clock minutes since midnight
   zone: string; // IANA zone, e.g. 'Asia/Jerusalem'
+  // v3: "back home/hotel by" — CURFEW_MISS raises when the day ends later.
+  curfewMin: number | null;
 }
 
 export interface Stop {
@@ -29,6 +33,19 @@ export interface Stop {
   legAfterMin: number | null; // manual drive minutes to the NEXT stop (M0; auto legs are M1)
   // D-025: a non-null value pins the start (reservation/tour); floaters carry null.
   anchorStartMin: number | null;
+  // v3: opening-hours facts feeding the constraint engine (all optional).
+  openMin: number | null;
+  closeMin: number | null;
+  lastEntryMin: number | null;
+  closedWeekdays: number[] | null; // 0=Sunday…6=Saturday
   wazeQuery?: string;
   note?: string;
+}
+
+// v3: an acknowledged conflict (D-020) — id IS the conflict's stable identity.
+export interface Dismissal {
+  id: string;
+  tripId: string;
+  severity: 'hard' | 'soft'; // severity at acknowledgement time (re-raise on escalation)
+  createdAt: string; // ISO, audit only
 }

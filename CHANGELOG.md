@@ -6,6 +6,14 @@ Design-phase history (PRs #1–#4) lives in DECISIONS.md and the PRs themselves;
 
 ## [Unreleased]
 
+### Added — the constraint engine (PR #28)
+
+- **Tiyul now argues back.** A conflicts drawer under each day lists everything wrong with the plan — hard blockers (red) and soft warnings (amber) — and every conflicted stop carries a chip.
+- **First eight rules:** overlap with a pinned reservation · not-enough-drive-time · arrival after last entry · arrival after closing · arrival before opening · closed-that-weekday · past the day's "back by" curfew · continuous drive over the trip's limit.
+- **"ראינו, בסדר" (Acknowledge):** soft warnings can be acknowledged — the acknowledgement is saved, survives reloads and recomputes, can be re-raised, and would automatically return if the situation ever escalates. Hard blockers can't be waved away.
+- **New planning facts you can record:** opening hours / last entry / closed weekdays per stop (ⓘ on the stop), a calendar date and a "Back by" time per day, and a max-continuous-drive limit per trip.
+- The demo trip's Saturday now deliberately ends 30 minutes past its curfew — open it to see the engine catch it.
+
 ### Fixed — numeric fields ate keystrokes (R-001, PR #23)
 
 - Typing multi-digit values into the duration / drive-time fields no longer loses digits: while you type, the field is yours — storage updates sync in only when you leave it.

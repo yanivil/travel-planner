@@ -14,6 +14,7 @@ const day: Day = {
   title: 'Day 1',
   startMin: 480,
   zone: 'Asia/Jerusalem',
+  curfewMin: null,
 };
 
 function stop(id: string, index: number, patch: Partial<Stop> = {}): Stop {
@@ -26,12 +27,16 @@ function stop(id: string, index: number, patch: Partial<Stop> = {}): Stop {
     durationMin: 60,
     legAfterMin: null,
     anchorStartMin: null,
+    openMin: null,
+    closeMin: null,
+    lastEntryMin: null,
+    closedWeekdays: null,
     ...patch,
-  };
+  } as Stop;
 }
 
 beforeEach(async () => {
-  await Promise.all([db.trips.clear(), db.days.clear(), db.stops.clear()]);
+  await Promise.all([db.trips.clear(), db.days.clear(), db.stops.clear(), db.dismissals.clear()]);
   history.length = 0;
   await i18n.changeLanguage('en');
   await db.days.add(day);
@@ -154,7 +159,7 @@ describe('DayTimeline behavior (tested via the DOM, never internals)', () => {
     expect(screen.getByText(/45 min wait/)).toBeInTheDocument();
   });
 
-  test('pinning earlier than the chain arrival flags lateness, never shifts silently', async () => {
+  test('pinning earlier than the previous end raises a hard OVERLAP conflict (chip + drawer)', async () => {
     await db.stops.bulkAdd([
       stop('a', 0, { name: 'Drive', durationMin: 60 }),
       stop('b', 1, { name: 'Tour', durationMin: 90 }),
@@ -169,7 +174,54 @@ describe('DayTimeline behavior (tested via the DOM, never internals)', () => {
     });
 
     expect(await screen.findByText('08:30–10:00')).toBeInTheDocument();
-    expect(screen.getByText(/Late by 30 min/)).toBeInTheDocument();
+    // appears twice by design: chip on the card and card in the drawer
+    const msgs = await screen.findAllByText(/"Tour" starts before "Drive" ends \(30 min overlap\)/);
+    expect(msgs.length).toBeGreaterThanOrEqual(2);
+    // hard conflicts are infeasible — they cannot be acknowledged away
+    expect(screen.queryByRole('button', { name: 'Acknowledge' })).not.toBeInTheDocument();
+  });
+
+  test('a curfew miss is soft: acknowledgeable, persisted, and listed under Acknowledged (D-020)', async () => {
+    await db.days.update(day.id, { curfewMin: 600 });
+    await db.stops.add(stop('a', 0, { name: 'Dinner', durationMin: 150 }));
+    const user = userEvent.setup();
+    render(<DayTimeline dayId={day.id} />);
+
+    expect(
+      await screen.findByText('The day ends 30 min after the 10:00 curfew'),
+    ).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: 'Acknowledge' }));
+
+    expect(await screen.findByText(/No conflicts/)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Acknowledged (1)' })).toBeInTheDocument();
+    expect(await db.dismissals.count()).toBe(1);
+
+    // and it can be re-raised — settle the data layer first, then the UI
+    // (CI machines are slow enough that the Dexie→liveQuery hop can exceed
+    // the default 1s findBy deadline; these waits are event-driven, not sleeps)
+    await user.click(screen.getByRole('button', { name: 'Acknowledged (1)' }));
+    await user.click(screen.getByRole('button', { name: 'Re-raise' }));
+    await waitFor(async () => expect(await db.dismissals.count()).toBe(0), { timeout: 3000 });
+    expect(
+      await screen.findByText('The day ends 30 min after the 10:00 curfew', {}, { timeout: 3000 }),
+    ).toBeInTheDocument();
+  });
+
+  test('opening the details editor and setting a last-entry raises the arrival conflict', async () => {
+    await db.stops.bulkAdd([
+      stop('a', 0, { name: 'Drive', durationMin: 120, legAfterMin: 30 }),
+      stop('b', 1, { name: 'Timna', durationMin: 60 }),
+    ]);
+    const user = userEvent.setup();
+    render(<DayTimeline dayId={day.id} />);
+    await screen.findByText('10:30–11:30');
+
+    await user.click(screen.getByRole('button', { name: 'Details: Timna' }));
+    fireEvent.change(screen.getByLabelText('Last entry — Timna'), { target: { value: '10:00' } });
+
+    const msgs = await screen.findAllByText(/Arrives at "Timna" 30 min after last entry \(10:00\)/);
+    expect(msgs.length).toBeGreaterThanOrEqual(2);
   });
 
   test('R-001: an async echo must not clobber digits the user is still typing', async () => {

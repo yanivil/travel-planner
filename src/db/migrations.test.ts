@@ -1,6 +1,6 @@
 import { describe, expect, test } from 'vitest';
 import Dexie from 'dexie';
-import { createDb, defineSchema, defineSchemaV1, SCHEMA_VERSION } from './db';
+import { createDb, defineSchema, defineSchemaV1, defineSchemaV2, SCHEMA_VERSION } from './db';
 
 // D-019 / TESTING.md policy 7: the migration harness. When SCHEMA_VERSION bumps
 // to N, this file MUST gain a test that (1) builds a database with the version
@@ -12,8 +12,8 @@ describe('schema versioning harness', () => {
     const name = `tiyul-migration-${crypto.randomUUID()}`;
 
     const first = createDb(name);
-    await first.trips.add({ id: 't1', name: 'Golan', createdAt: '2026-08-01T00:00:00.000Z' });
-    await first.days.add({ id: 'd1', tripId: 't1', index: 0, title: 'Day 1', startMin: 480, zone: 'Asia/Jerusalem' });
+    await first.trips.add({ id: 't1', name: 'Golan', createdAt: '2026-08-01T00:00:00.000Z', maxDriveStretchMin: null });
+    await first.days.add({ id: 'd1', tripId: 't1', index: 0, title: 'Day 1', startMin: 480, zone: 'Asia/Jerusalem', curfewMin: null });
     await first.stops.add({
       id: 's1',
       dayId: 'd1',
@@ -23,6 +23,10 @@ describe('schema versioning harness', () => {
       durationMin: 120,
       legAfterMin: 25,
       anchorStartMin: null,
+      openMin: null,
+      closeMin: null,
+      lastEntryMin: null,
+      closedWeekdays: null,
     });
     first.close();
 
@@ -55,6 +59,31 @@ describe('schema versioning harness', () => {
     expect(stop?.durationMin).toBe(150);
     expect(await upgraded.trips.count()).toBe(1);
     expect(await upgraded.days.count()).toBe(1);
+    upgraded.close();
+  });
+
+  test('a real v2 (anchors) database upgrades to v3: nulls backfilled, dismissals table added', async () => {
+    const name = `tiyul-migration-v2-${crypto.randomUUID()}`;
+
+    // build the database exactly as the anchors release shipped it
+    const v2 = new Dexie(name);
+    defineSchemaV2(v2);
+    await v2.open();
+    await v2.table('trips').add({ id: 't1', name: 'Yahel', createdAt: '2026-08-01T00:00:00.000Z' });
+    await v2.table('days').add({ id: 'd1', tripId: 't1', index: 0, title: 'Friday', startMin: 480, zone: 'Asia/Jerusalem' });
+    await v2.table('stops').add({ id: 's1', dayId: 'd1', index: 0, name: 'Timna', kind: 'activity', durationMin: 180, legAfterMin: 25, anchorStartMin: 565 });
+    v2.close();
+
+    const upgraded = createDb(name);
+    await upgraded.open();
+    expect(upgraded.verno).toBe(SCHEMA_VERSION);
+    const stop = await upgraded.stops.get('s1');
+    expect(stop?.anchorStartMin).toBe(565); // v2 data intact
+    expect(stop?.openMin).toBeNull();
+    expect(stop?.closedWeekdays).toBeNull();
+    expect((await upgraded.days.get('d1'))?.curfewMin).toBeNull();
+    expect((await upgraded.trips.get('t1'))?.maxDriveStretchMin).toBeNull();
+    expect(await upgraded.dismissals.count()).toBe(0); // table exists and is empty
     upgraded.close();
   });
 

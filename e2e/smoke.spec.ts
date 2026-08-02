@@ -80,10 +80,38 @@ test('pinning a reservation surfaces slack and lateness (anchors, D-025)', async
   await expect(page.getByText('09:45–10:45')).toBeVisible();
   await expect(page.getByText(/45 min wait/)).toBeVisible();
 
-  // move the reservation before the arrival → flagged late, start stays pinned
+  // move the reservation before the previous end → hard OVERLAP conflict,
+  // shown as a chip on the card AND a card in the conflicts drawer
   await page.getByLabel('Pinned start — Lunch').fill('08:30');
   await expect(page.getByText('08:30–09:30')).toBeVisible();
-  await expect(page.getByText(/Late by 30 min/)).toBeVisible();
+  await expect(page.getByText(/starts before "Drive" ends \(30 min overlap\)/).first()).toBeVisible();
+  await expect(page.locator('.conflict-card.sev-hard')).toBeVisible();
+});
+
+test('a soft curfew conflict can be acknowledged and the acknowledgement survives reload', async ({ page }) => {
+  await switchToEnglish(page);
+  await page.getByLabel('Trip name').fill('Engine');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await page.getByRole('button', { name: '+ Add day' }).click();
+
+  const form = page.locator('.add-form');
+  await form.getByLabel('Stop name').fill('Dinner');
+  await form.getByLabel('Duration (min)').fill('120');
+  await form.getByRole('button', { name: 'Add stop' }).click();
+  await expect(page.getByText('08:00–10:00')).toBeVisible();
+
+  await page.getByLabel('Back by').fill('09:30');
+  await expect(page.getByText(/The day ends 30 min after the 09:30 curfew/).first()).toBeVisible();
+
+  await page.getByRole('button', { name: 'Acknowledge' }).click();
+  await expect(page.getByText(/No conflicts/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Acknowledged (1)' })).toBeVisible();
+
+  // the acknowledgement is stored data, not UI state — it survives a reload
+  await page.reload();
+  await page.getByRole('button', { name: 'Engine' }).click();
+  await expect(page.getByText(/No conflicts/)).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Acknowledged (1)' })).toBeVisible();
 });
 
 test('day start edit shifts the whole schedule', async ({ page }) => {

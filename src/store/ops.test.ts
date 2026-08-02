@@ -10,8 +10,8 @@ beforeEach(() => {
   history.length = 0;
 });
 
-const trip: Trip = { id: 'trip-1', name: 'Test', createdAt: '2026-08-01T00:00:00.000Z' };
-const day: Day = { id: 'day-1', tripId: trip.id, index: 0, title: 'Day 1', startMin: 480, zone: 'Asia/Jerusalem' };
+const trip: Trip = { id: 'trip-1', name: 'Test', createdAt: '2026-08-01T00:00:00.000Z', maxDriveStretchMin: null };
+const day: Day = { id: 'day-1', tripId: trip.id, index: 0, title: 'Day 1', startMin: 480, zone: 'Asia/Jerusalem', curfewMin: null };
 
 function stop(id: string, index: number, patch: Partial<Stop> = {}): Stop {
   return {
@@ -23,8 +23,12 @@ function stop(id: string, index: number, patch: Partial<Stop> = {}): Stop {
     durationMin: 60,
     legAfterMin: null,
     anchorStartMin: null,
+    openMin: null,
+    closeMin: null,
+    lastEntryMin: null,
+    closedWeekdays: null,
     ...patch,
-  };
+  } as Stop;
 }
 
 async function orderedNames(): Promise<string[]> {
@@ -39,8 +43,8 @@ async function assertIndexIntegrity(): Promise<void> {
 
 describe('invert is an involution (on canonical ops — arrays always present)', () => {
   const ops: Op[] = [
-    { t: 'trip/add', trip, days: [], stops: [] },
-    { t: 'trip/remove', trip, days: [day], stops: [stop('a', 0)] },
+    { t: 'trip/add', trip, days: [], stops: [], dismissals: [] },
+    { t: 'trip/remove', trip, days: [day], stops: [stop('a', 0)], dismissals: [] },
     { t: 'trip/update', id: trip.id, patch: { name: 'B' }, prev: { name: 'A' } },
     { t: 'day/add', day, stops: [] },
     { t: 'day/remove', day, stops: [stop('a', 0)] },
@@ -87,7 +91,7 @@ describe('applyOp structural integrity', () => {
   test('trip/remove cascades to days and stops', async () => {
     const days = await db.days.where('tripId').equals(trip.id).toArray();
     const stops = await db.stops.where('dayId').anyOf(days.map((d) => d.id)).toArray();
-    await applyOp({ t: 'trip/remove', trip, days, stops }, db);
+    await applyOp({ t: 'trip/remove', trip, days, stops, dismissals: [] }, db);
     expect(await db.trips.count()).toBe(0);
     expect(await db.days.count()).toBe(0);
     expect(await db.stops.count()).toBe(0);
@@ -125,5 +129,26 @@ describe('undo (D-020: every op is reversible)', () => {
 
   test('undo on empty history is a safe no-op', async () => {
     expect(await undo(db)).toBe(false);
+  });
+
+  test('acknowledging a conflict is an op: applies, cascades on trip delete, undoes (D-020)', async () => {
+    await dispatch({ t: 'trip/add', trip }, db);
+    const dismissal = {
+      id: 'CURFEW_MISS:day-1:b',
+      tripId: trip.id,
+      severity: 'soft' as const,
+      createdAt: '2026-08-02T00:00:00.000Z',
+    };
+    await dispatch({ t: 'dismissal/add', dismissal }, db);
+    expect(await db.dismissals.count()).toBe(1);
+
+    await undo(db);
+    expect(await db.dismissals.count()).toBe(0);
+    await dispatch({ t: 'dismissal/add', dismissal }, db);
+
+    await applyOp({ t: 'trip/remove', trip, days: [], stops: [], dismissals: [dismissal] }, db);
+    expect(await db.dismissals.count()).toBe(0);
+    await applyOp({ t: 'trip/add', trip, days: [], stops: [], dismissals: [dismissal] }, db);
+    expect(await db.dismissals.count()).toBe(1);
   });
 });

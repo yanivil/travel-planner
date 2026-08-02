@@ -7,7 +7,7 @@ import { history } from '../store/ops';
 import { TripsList } from './TripsList';
 
 beforeEach(async () => {
-  await Promise.all([db.trips.clear(), db.days.clear(), db.stops.clear()]);
+  await Promise.all([db.trips.clear(), db.days.clear(), db.stops.clear(), db.dismissals.clear()]);
   history.length = 0;
   await i18n.changeLanguage('en');
 });
@@ -44,9 +44,9 @@ describe('TripsList', () => {
   test('delete asks for confirmation and cascades days and stops', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(true);
     const user = userEvent.setup();
-    await db.trips.add({ id: 'trip-1', name: 'Doomed', createdAt: '2026-08-01T00:00:00.000Z' });
-    await db.days.add({ id: 'd1', tripId: 'trip-1', index: 0, title: 'Day 1', startMin: 480, zone: 'Asia/Jerusalem' });
-    await db.stops.add({ id: 's1', dayId: 'd1', index: 0, name: 'X', kind: 'activity', durationMin: 60, legAfterMin: null, anchorStartMin: null });
+    await db.trips.add({ id: 'trip-1', name: 'Doomed', createdAt: '2026-08-01T00:00:00.000Z', maxDriveStretchMin: null });
+    await db.days.add({ id: 'd1', tripId: 'trip-1', index: 0, title: 'Day 1', startMin: 480, zone: 'Asia/Jerusalem', curfewMin: null });
+    await db.stops.add({ id: 's1', dayId: 'd1', index: 0, name: 'X', kind: 'activity', durationMin: 60, legAfterMin: null, anchorStartMin: null, openMin: null, closeMin: null, lastEntryMin: null, closedWeekdays: null });
 
     render(<TripsList onOpen={() => {}} />);
     await user.click(await screen.findByRole('button', { name: 'Delete' }));
@@ -61,7 +61,7 @@ describe('TripsList', () => {
   test('declining the confirmation keeps the trip', async () => {
     const confirmSpy = vi.spyOn(window, 'confirm').mockReturnValue(false);
     const user = userEvent.setup();
-    await db.trips.add({ id: 'trip-1', name: 'Safe', createdAt: '2026-08-01T00:00:00.000Z' });
+    await db.trips.add({ id: 'trip-1', name: 'Safe', createdAt: '2026-08-01T00:00:00.000Z', maxDriveStretchMin: null });
 
     render(<TripsList onOpen={() => {}} />);
     await user.click(await screen.findByRole('button', { name: 'Delete' }));

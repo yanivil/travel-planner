@@ -14,9 +14,11 @@ import { SortableContext, verticalListSortingStrategy, sortableKeyboardCoordinat
 import { db } from '../db/db';
 import { dispatch } from '../store/ops';
 import { computeDaySchedule } from '../domain/schedule';
+import { computeConflicts, visibleConflicts, type Conflict } from '../domain/conflicts';
 import { formatHM, parseHM } from '../domain/time';
 import type { StopKind } from '../domain/types';
-import { StopRow } from './StopRow';
+import { StopRow, type ConflictChip } from './StopRow';
+import { ConflictsPanel } from './ConflictsPanel';
 
 const KINDS: StopKind[] = ['activity', 'meal', 'lodging', 'free'];
 
@@ -26,6 +28,14 @@ export function DayTimeline({ dayId }: { dayId: string }) {
   const stops = useLiveQuery(
     () => db.stops.where('dayId').equals(dayId).sortBy('index'),
     [dayId],
+  );
+  const trip = useLiveQuery(
+    async () => (day ? db.trips.get(day.tripId) : undefined),
+    [day?.tripId],
+  );
+  const dismissals = useLiveQuery(
+    async () => (day ? db.dismissals.where('tripId').equals(day.tripId).toArray() : []),
+    [day?.tripId],
   );
 
   const [newName, setNewName] = useState('');
@@ -44,16 +54,36 @@ export function DayTimeline({ dayId }: { dayId: string }) {
   const schedule = computeDaySchedule(day.startMin, stops);
   const scheduleById = new Map(schedule.map((s) => [s.stopId, s]));
 
-  const setDayStart = async (text: string) => {
-    const startMin = parseHM(text);
-    if (startMin == null) return;
-    await dispatch({
-      t: 'day/update',
-      id: day.id,
-      patch: { startMin },
-      prev: { startMin: day.startMin },
-    });
+  // The engine runs on every render — the recompute is pure and cheap, so
+  // conflicts can never go stale (spec §4.2).
+  const conflicts = computeConflicts(
+    { maxDriveStretchMin: trip?.maxDriveStretchMin ?? null },
+    { id: day.id, date: day.date, curfewMin: day.curfewMin },
+    stops,
+    schedule,
+  );
+  const { active, acknowledged } = visibleConflicts(
+    conflicts,
+    (dismissals ?? []).map((d) => ({ id: d.id, severity: d.severity })),
+  );
+  const dismissedIds = new Map((dismissals ?? []).map((d) => [d.id, { severity: d.severity }]));
+
+  const conflictText = (c: Conflict) => {
+    const params = { ...c.messageParams };
+    if (c.rule === 'CLOSED_DAY') params.d = t(`wd${params.d}`);
+    return t(c.messageKey, params);
   };
+  const chipsByStop = new Map<string, ConflictChip[]>();
+  for (const c of active) {
+    for (const sid of c.stopIds) {
+      const list = chipsByStop.get(sid) ?? [];
+      list.push({ severity: c.severity, text: conflictText(c) });
+      chipsByStop.set(sid, list);
+    }
+  }
+
+  const updateDay = (patch: Partial<typeof day>, prev: Partial<typeof day>) =>
+    void dispatch({ t: 'day/update', id: day.id, patch, prev });
 
   const addStop = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -70,6 +100,10 @@ export function DayTimeline({ dayId }: { dayId: string }) {
         durationMin: Math.max(0, newDuration),
         legAfterMin: newLeg > 0 ? newLeg : null,
         anchorStartMin: null,
+        openMin: null,
+        closeMin: null,
+        lastEntryMin: null,
+        closedWeekdays: null,
         wazeQuery: newWaze.trim() || undefined,
       },
     });
@@ -83,9 +117,9 @@ export function DayTimeline({ dayId }: { dayId: string }) {
   };
 
   const onDragEnd = (event: DragEndEvent) => {
-    const { active, over } = event;
-    if (!over || active.id === over.id) return;
-    const from = stops.findIndex((s) => s.id === active.id);
+    const { active: dragged, over } = event;
+    if (!over || dragged.id === over.id) return;
+    const from = stops.findIndex((s) => s.id === dragged.id);
     const to = stops.findIndex((s) => s.id === over.id);
     if (from >= 0 && to >= 0) moveStop(from, to);
   };
@@ -98,8 +132,42 @@ export function DayTimeline({ dayId }: { dayId: string }) {
           <input
             type="time"
             value={formatHM(day.startMin)}
-            onChange={(e) => setDayStart(e.target.value)}
+            onChange={(e) => {
+              const startMin = parseHM(e.target.value);
+              if (startMin != null) updateDay({ startMin }, { startMin: day.startMin });
+            }}
           />
+        </label>
+        <label className="row" style={{ gap: '0.4rem' }}>
+          <span className="muted">{t('dayDate')}</span>
+          <input
+            type="date"
+            aria-label={t('dayDate')}
+            value={day.date ?? ''}
+            onChange={(e) => updateDay({ date: e.target.value || undefined }, { date: day.date })}
+          />
+        </label>
+        <label className="row" style={{ gap: '0.4rem' }}>
+          <span className="muted">{t('curfew')}</span>
+          <input
+            type="time"
+            aria-label={t('curfew')}
+            value={day.curfewMin != null ? formatHM(day.curfewMin) : ''}
+            onChange={(e) => {
+              const curfewMin = parseHM(e.target.value);
+              if (curfewMin != null) updateDay({ curfewMin }, { curfewMin: day.curfewMin });
+            }}
+          />
+          {day.curfewMin != null && (
+            <button
+              type="button"
+              className="btn-ghost clear-btn"
+              aria-label={`${t('clear')} ${t('curfew')}`}
+              onClick={() => updateDay({ curfewMin: null }, { curfewMin: day.curfewMin })}
+            >
+              ✕
+            </button>
+          )}
         </label>
       </div>
 
@@ -118,6 +186,7 @@ export function DayTimeline({ dayId }: { dayId: string }) {
                   scheduled={sched}
                   isFirst={i === 0}
                   isLast={i === stops.length - 1}
+                  conflictChips={chipsByStop.get(stop.id) ?? []}
                   onMoveUp={() => moveStop(i, i - 1)}
                   onMoveDown={() => moveStop(i, i + 1)}
                 />
@@ -126,6 +195,15 @@ export function DayTimeline({ dayId }: { dayId: string }) {
           </ol>
         </SortableContext>
       </DndContext>
+
+      {stops.length > 0 && (
+        <ConflictsPanel
+          tripId={day.tripId}
+          active={active}
+          acknowledged={acknowledged}
+          dismissedIds={dismissedIds}
+        />
+      )}
 
       <form className="add-form" onSubmit={addStop}>
         <label>

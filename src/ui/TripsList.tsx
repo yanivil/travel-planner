@@ -17,7 +17,7 @@ export function TripsList({ onOpen }: { onOpen: (tripId: string) => void }) {
     const id = crypto.randomUUID();
     await dispatch({
       t: 'trip/add',
-      trip: { id, name: trimmed, createdAt: new Date().toISOString() },
+      trip: { id, name: trimmed, createdAt: new Date().toISOString(), maxDriveStretchMin: null },
     });
     setName('');
     onOpen(id);
@@ -29,7 +29,8 @@ export function TripsList({ onOpen }: { onOpen: (tripId: string) => void }) {
     if (!trip) return;
     const days = await db.days.where('tripId').equals(tripId).toArray();
     const stops = await db.stops.where('dayId').anyOf(days.map((d) => d.id)).toArray();
-    await dispatch({ t: 'trip/remove', trip, days, stops });
+    const dismissals = await db.dismissals.where('tripId').equals(tripId).toArray();
+    await dispatch({ t: 'trip/remove', trip, days, stops, dismissals });
   };
 
   const loadDemo = async () => {
