@@ -6,6 +6,12 @@ Design-phase history (PRs #1–#4) lives in DECISIONS.md and the PRs themselves;
 
 ## [Unreleased]
 
+### Added — undo & redo (PR #30)
+
+- **↩ / ↪ in the header, plus Ctrl/Cmd+Z and Ctrl+Shift+Z / Ctrl+Y** — every edit in Tiyul is reversible: stops, days, trips, pins, hours, even conflict acknowledgements. A toast says exactly what was undone ("בוטל: הוספת עצירה").
+- A new edit after undo forks the timeline (redo clears), and undoing a trip you're inside returns you safely to the list.
+- Text fields keep their native undo — the app never hijacks Ctrl+Z while you're typing.
+
 ### Added — Shabbat & calendar awareness (PR #29)
 
 - **Candle-lighting and havdalah times, computed on your device** (works offline) for any day with a date + location — pick from Israeli presets (Yahel, Jerusalem, Tzfat…) or paste coordinates/a Maps link. Jerusalem automatically uses the 40-minute minhag. Times are marked as halachic approximations.

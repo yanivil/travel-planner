@@ -114,6 +114,27 @@ test('a soft curfew conflict can be acknowledged and the acknowledgement survive
   await expect(page.getByRole('button', { name: 'Acknowledged (1)' })).toBeVisible();
 });
 
+test('Ctrl+Z undoes the last edit and the Redo button replays it (#16)', async ({ page }) => {
+  await switchToEnglish(page);
+  await page.getByLabel('Trip name').fill('UndoTrip');
+  await page.getByRole('button', { name: 'Create' }).click();
+  await page.getByRole('button', { name: '+ Add day' }).click();
+
+  const form = page.locator('.add-form');
+  await form.getByLabel('Stop name').fill('Picnic');
+  await form.getByLabel('Duration (min)').fill('60');
+  await form.getByRole('button', { name: 'Add stop' }).click();
+  await expect(page.getByText('08:00–09:00')).toBeVisible();
+
+  await page.keyboard.press('Control+z');
+  await expect(page.getByText('Undone: add stop')).toBeVisible();
+  await expect(page.getByText('08:00–09:00')).toBeHidden();
+
+  await page.getByRole('button', { name: 'Redo' }).click();
+  await expect(page.getByText('Redone: add stop')).toBeVisible();
+  await expect(page.getByText('08:00–09:00')).toBeVisible();
+});
+
 test('day start edit shifts the whole schedule', async ({ page }) => {
   await switchToEnglish(page);
   await page.getByLabel('Trip name').fill('Shift test');

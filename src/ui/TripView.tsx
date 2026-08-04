@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from 'react-i18next';
 import { db } from '../db/db';
@@ -12,7 +12,12 @@ const DEFAULT_ZONE = 'Asia/Jerusalem';
 
 export function TripView({ tripId, onBack }: { tripId: string; onBack: () => void }) {
   const { t } = useTranslation();
-  const trip = useLiveQuery(() => db.trips.get(tripId), [tripId]);
+  // undefined = still loading, null = the trip is gone (e.g. its creation was
+  // just undone) — in that case fall back to the list instead of a blank view
+  const trip = useLiveQuery(async () => (await db.trips.get(tripId)) ?? null, [tripId]);
+  useEffect(() => {
+    if (trip === null) onBack();
+  }, [trip, onBack]);
   const days = useLiveQuery(
     () => db.days.where('tripId').equals(tripId).sortBy('index'),
     [tripId],

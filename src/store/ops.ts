@@ -137,16 +137,54 @@ export async function applyOp(op: Op, target: TiyulDB = db): Promise<void> {
 const HISTORY_CAP = 100;
 
 export const history: Op[] = [];
+const future: Op[] = [];
+
+// The arrays above are plain module state — UI that renders undo/redo
+// availability subscribes here (D-020: undo is a store property, UI is thin).
+type HistoryListener = () => void;
+const listeners = new Set<HistoryListener>();
+const notify = () => {
+  for (const l of listeners) l();
+};
+
+export function subscribeHistory(fn: HistoryListener): () => void {
+  listeners.add(fn);
+  return () => listeners.delete(fn);
+}
+
+export const canUndo = () => history.length > 0;
+export const canRedo = () => future.length > 0;
+
+export function resetHistory(): void {
+  history.length = 0;
+  future.length = 0;
+  notify();
+}
 
 export async function dispatch(op: Op, target: TiyulDB = db): Promise<void> {
   await applyOp(op, target);
   history.push(op);
   if (history.length > HISTORY_CAP) history.shift();
+  future.length = 0; // a new edit forks the timeline — redo history dies
+  notify();
 }
 
-export async function undo(target: TiyulDB = db): Promise<boolean> {
+/** Undoes the latest op; returns it (for the toast) or null when empty. */
+export async function undo(target: TiyulDB = db): Promise<Op | null> {
   const op = history.pop();
-  if (!op) return false;
+  if (!op) return null;
   await applyOp(invert(op), target);
-  return true;
+  future.push(op);
+  notify();
+  return op;
+}
+
+/** Re-applies the latest undone op; returns it or null when empty. */
+export async function redo(target: TiyulDB = db): Promise<Op | null> {
+  const op = future.pop();
+  if (!op) return null;
+  await applyOp(op, target);
+  history.push(op);
+  notify();
+  return op;
 }

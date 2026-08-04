@@ -136,6 +136,15 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .clear-btn { min-height: 1.6rem; padding: 0 0.4rem; font-size: 0.8rem; }
 
 .chip.sandy { color: var(--sand); border-color: var(--sand); }
+.toast {
+  position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);
+  background: var(--ink); color: var(--bg);
+  padding: 0.5rem 1rem; border-radius: 999px; font-size: 0.9rem;
+  z-index: 50; box-shadow: 0 4px 16px rgb(0 0 0 / 0.25);
+}
+button:disabled { opacity: 0.4; cursor: default; }
+button:disabled:hover { border-color: transparent; }
+
 .shabbat-band {
   list-style: none; margin: 0.45rem 0; padding: 0.45rem 0.8rem;
   border-radius: 8px; background: var(--panel-2);
