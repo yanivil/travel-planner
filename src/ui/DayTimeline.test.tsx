@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n, { setLang } from '../i18n';
 import { db } from '../db/db';
-import { history } from '../store/ops';
+import { resetHistory } from '../store/ops';
 import type { Day, Stop } from '../domain/types';
 import { DayTimeline } from './DayTimeline';
 
@@ -40,7 +40,7 @@ function stop(id: string, index: number, patch: Partial<Stop> = {}): Stop {
 
 beforeEach(async () => {
   await Promise.all([db.trips.clear(), db.days.clear(), db.stops.clear(), db.dismissals.clear()]);
-  history.length = 0;
+  resetHistory();
   await i18n.changeLanguage('en');
   await db.days.add(day);
 });

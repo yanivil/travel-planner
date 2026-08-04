@@ -1,13 +1,13 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import { createDb, type TiyulDB } from '../db/db';
-import { applyOp, dispatch, history, invert, undo, type Op } from './ops';
+import { applyOp, canRedo, canUndo, dispatch, history, invert, redo, resetHistory, undo, type Op } from './ops';
 import type { Day, Stop, Trip } from '../domain/types';
 
 let db: TiyulDB;
 
 beforeEach(() => {
   db = createDb(`tiyul-test-${crypto.randomUUID()}`);
-  history.length = 0;
+  resetHistory();
 });
 
 const trip: Trip = { id: 'trip-1', name: 'Test', createdAt: '2026-08-01T00:00:00.000Z', maxDriveStretchMin: null, observance: 'none' };
@@ -128,7 +128,37 @@ describe('undo (D-020: every op is reversible)', () => {
   });
 
   test('undo on empty history is a safe no-op', async () => {
-    expect(await undo(db)).toBe(false);
+    expect(await undo(db)).toBeNull();
+  });
+
+  test('undo then redo replays the exact op and restores history', async () => {
+    await dispatch({ t: 'trip/add', trip }, db);
+    await dispatch({ t: 'day/add', day }, db);
+    expect(canUndo()).toBe(true);
+    expect(canRedo()).toBe(false);
+
+    await undo(db);
+    expect(await db.days.count()).toBe(0);
+    expect(canRedo()).toBe(true);
+
+    const replayed = await redo(db);
+    expect(replayed?.t).toBe('day/add');
+    expect(await db.days.count()).toBe(1);
+    expect(history).toHaveLength(2);
+    expect(canRedo()).toBe(false);
+  });
+
+  test('a new edit after undo forks the timeline — redo dies', async () => {
+    await dispatch({ t: 'trip/add', trip }, db);
+    await dispatch({ t: 'day/add', day }, db);
+    await undo(db);
+    await dispatch({ t: 'day/add', day: { ...day, id: 'day-2' } }, db);
+    expect(canRedo()).toBe(false);
+    expect(await redo(db)).toBeNull();
+  });
+
+  test('redo on empty future is a safe no-op', async () => {
+    expect(await redo(db)).toBeNull();
   });
 
   test('acknowledging a conflict is an op: applies, cascades on trip delete, undoes (D-020)', async () => {

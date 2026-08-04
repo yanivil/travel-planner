@@ -3,12 +3,12 @@ import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n from '../i18n';
 import { db } from '../db/db';
-import { history } from '../store/ops';
+import { resetHistory } from '../store/ops';
 import { TripsList } from './TripsList';
 
 beforeEach(async () => {
   await Promise.all([db.trips.clear(), db.days.clear(), db.stops.clear(), db.dismissals.clear()]);
-  history.length = 0;
+  resetHistory();
   await i18n.changeLanguage('en');
 });
 
