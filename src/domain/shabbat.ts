@@ -52,13 +52,12 @@ export function zmanimForDate(
     il,
   });
   const out: DayZmanim = { ...NONE };
+  // instanceof, never constructor.name — minified builds mangle class names
+  // (caught by E2E against the production build before it ever shipped).
+  // Both classes always carry eventTime, so no separate null guard is needed.
   for (const ev of events) {
-    const time = (ev as { eventTime?: Date }).eventTime;
-    if (!time) continue;
-    // instanceof, never constructor.name — minified builds mangle class names
-    // (caught by E2E against the production build before it ever shipped)
-    if (ev instanceof CandleLightingEvent) out.candleMin = wallClockMin(time, zone);
-    else if (ev instanceof HavdalahEvent) out.havdalahMin = wallClockMin(time, zone);
+    if (ev instanceof CandleLightingEvent) out.candleMin = wallClockMin(ev.eventTime, zone);
+    if (ev instanceof HavdalahEvent) out.havdalahMin = wallClockMin(ev.eventTime, zone);
   }
   return out;
 }

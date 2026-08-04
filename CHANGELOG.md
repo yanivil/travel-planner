@@ -6,6 +6,11 @@ Design-phase history (PRs #1–#4) lives in DECISIONS.md and the PRs themselves;
 
 ## [Unreleased]
 
+### Added — single-file HTML export (PR #31)
+
+- **ייצוא (HTML)** on any trip downloads one self-contained file: the full computed plan — times, drive legs, 📌 pins, zmanim, curfews, open conflicts, Waze links — that opens **from the file itself with zero network**, prints cleanly, and can be sent in WhatsApp. The plan is never hostage (spec §4.7).
+- The file embeds the schema version and the raw trip data, so a future version of Tiyul will be able to import it back.
+
 ### Added — undo & redo (PR #30)
 
 - **↩ / ↪ in the header, plus Ctrl/Cmd+Z and Ctrl+Shift+Z / Ctrl+Y** — every edit in Tiyul is reversible: stops, days, trips, pins, hours, even conflict acknowledgements. A toast says exactly what was undone ("בוטל: הוספת עצירה").

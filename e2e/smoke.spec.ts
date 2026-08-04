@@ -135,6 +135,31 @@ test('Ctrl+Z undoes the last edit and the Redo button replays it (#16)', async (
   await expect(page.getByText('08:00–09:00')).toBeVisible();
 });
 
+test('HTML export downloads a self-contained file that opens with zero network (#17)', async ({ page, browserName }) => {
+  await switchToEnglish(page);
+  await page.getByRole('button', { name: 'Load demo trip (Yahel)' }).click();
+  await expect(page.getByRole('heading', { name: 'סופ״ש ביהל (הדגמה)' })).toBeVisible();
+
+  const downloadPromise = page.waitForEvent('download');
+  await page.getByRole('button', { name: 'Export (HTML)' }).click();
+  const download = await downloadPromise;
+  const filePath = await download.path();
+  const fs = await import('node:fs/promises');
+  const content = await fs.readFile(filePath!, 'utf-8');
+  expect(content).toContain('tiyul-schema-version');
+  expect(content).toContain('חמישי — הגעה');
+
+  // the true zero-bars proof: open the downloaded file itself.
+  // Chromium only — Playwright's WebKit doesn't reliably load file:// pages
+  // (same family of headless-WebKit limits recorded in TESTING.md §7).
+  if (browserName === 'chromium') {
+    await page.goto('file://' + filePath);
+    await expect(page.getByText('שישי — תמנע')).toBeVisible();
+    await expect(page.getByText(/Candles 18:46/)).toBeVisible(); // EN labels, HE data
+    await expect(page.getByText('14:00–15:00')).toBeVisible();
+  }
+});
+
 test('day start edit shifts the whole schedule', async ({ page }) => {
   await switchToEnglish(page);
   await page.getByLabel('Trip name').fill('Shift test');
