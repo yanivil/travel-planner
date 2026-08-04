@@ -1,5 +1,5 @@
 import { beforeEach, describe, expect, test, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n from '../i18n';
 import { db } from '../db/db';
@@ -90,6 +90,39 @@ describe('TripView', () => {
     await user.selectOptions(screen.getByLabelText('Shabbat observance'), 'soft');
 
     expect((await db.trips.get('trip-1'))?.observance).toBe('soft');
+  });
+
+  test('export builds a self-contained HTML blob with the computed plan (#17)', async () => {
+    await db.days.bulkAdd([
+      { id: 'd1', tripId: 'trip-1', index: 0, title: 'Friday', date: '2026-08-28', startMin: 480, zone: 'Asia/Jerusalem', curfewMin: null, lat: 29.878, lng: 35.096, locationName: 'קיבוץ יהל (ערבה)' },
+    ]);
+    await db.stops.add({ id: 's1', dayId: 'd1', index: 0, name: 'בריכה', kind: 'activity', durationMin: 150, legAfterMin: null, anchorStartMin: null, openMin: null, closeMin: null, lastEntryMin: null, closedWeekdays: null });
+
+    const captured: Blob[] = [];
+    const origCreate = URL.createObjectURL;
+    const origRevoke = URL.revokeObjectURL;
+    URL.createObjectURL = vi.fn((b: Blob) => {
+      captured.push(b);
+      return 'blob:test';
+    }) as typeof URL.createObjectURL;
+    URL.revokeObjectURL = vi.fn() as typeof URL.revokeObjectURL;
+
+    try {
+      const user = userEvent.setup();
+      render(<TripView tripId="trip-1" onBack={() => {}} />);
+      await screen.findByRole('heading', { name: 'North weekend' });
+      await user.click(screen.getByRole('button', { name: 'Export (HTML)' }));
+
+      await waitFor(() => expect(captured).toHaveLength(1));
+      const html = await captured[0]!.text();
+      expect(html).toContain('North weekend');
+      expect(html).toContain('08:00–10:30'); // computed schedule, not raw data
+      expect(html).toContain('Candles 18:46'); // offline zmanim ride along (EN labels, HE data)
+      expect(html).toContain('name="tiyul-schema-version" content="4"');
+    } finally {
+      URL.createObjectURL = origCreate;
+      URL.revokeObjectURL = origRevoke;
+    }
   });
 
   test('back button calls onBack', async () => {
