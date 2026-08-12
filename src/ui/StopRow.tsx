@@ -1,8 +1,11 @@
 import { useState } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from 'react-i18next';
+import { db } from '../db/db';
 import { dispatch } from '../store/ops';
+import { AttachmentRow } from './AttachmentRow';
 import { formatRange, formatHM, parseHM } from '../domain/time';
 import { wazeUrl } from '../domain/waze';
 import { NumberField } from './NumberField';
@@ -16,6 +19,7 @@ export interface ConflictChip {
 
 interface Props {
   stop: Stop;
+  tripId: string;
   scheduled: ScheduledStop;
   isFirst: boolean;
   isLast: boolean;
@@ -24,12 +28,42 @@ interface Props {
   onMoveDown: () => void;
 }
 
+const MAX_ATTACHMENT_BYTES = 10 * 1024 * 1024; // D-028
+
 const WEEKDAYS = [0, 1, 2, 3, 4, 5, 6] as const;
 
-export function StopRow({ stop, scheduled, isFirst, isLast, conflictChips, onMoveUp, onMoveDown }: Props) {
+export function StopRow({ stop, tripId, scheduled, isFirst, isLast, conflictChips, onMoveUp, onMoveDown }: Props) {
   const { t } = useTranslation();
   const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: stop.id });
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [fileTooBig, setFileTooBig] = useState(false);
+  const attachments = useLiveQuery(
+    () => db.attachments.where('stopId').equals(stop.id).toArray(),
+    [stop.id],
+  );
+
+  const onAttachFile = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = '';
+    if (!file) return;
+    if (file.size > MAX_ATTACHMENT_BYTES) {
+      setFileTooBig(true);
+      return;
+    }
+    setFileTooBig(false);
+    void dispatch({
+      t: 'attachment/add',
+      attachment: {
+        id: crypto.randomUUID(),
+        tripId,
+        stopId: stop.id,
+        name: file.name,
+        mimeType: file.type || 'application/octet-stream',
+        data: file,
+        createdAt: new Date().toISOString(),
+      },
+    });
+  };
 
   const updateStop = (patch: Partial<Stop>, prev: Partial<Stop>) =>
     void dispatch({ t: 'stop/update', id: stop.id, patch, prev });
@@ -202,6 +236,22 @@ export function StopRow({ stop, scheduled, isFirst, isLast, conflictChips, onMov
               {hoursField('openMin', t('open'))}
               {hoursField('closeMin', t('close'))}
               {hoursField('lastEntryMin', t('lastEntry'))}
+              <div className="att-block">
+                <span className="muted">{t('attachments')}</span>
+                {attachments?.map((a) => (
+                  <AttachmentRow key={a.id} att={a} />
+                ))}
+                <label className="att-add">
+                  {t('attach')}
+                  <input
+                    type="file"
+                    accept="image/*,application/pdf"
+                    aria-label={`${t('attach')} — ${stop.name}`}
+                    onChange={onAttachFile}
+                  />
+                </label>
+                {fileTooBig && <span className="chip bad">{t('tooBig')}</span>}
+              </div>
               <label>
                 {t('closedOn')}
                 <span className="wd-row" role="group" aria-label={`${t('closedOn')} — ${stop.name}`}>

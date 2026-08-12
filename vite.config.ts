@@ -7,6 +7,8 @@ export default defineConfig({
     react(),
     VitePWA({
       registerType: 'autoUpdate',
+      // registration is manual in main.tsx (offline-readiness signal, D-028)
+      injectRegister: null,
       devOptions: { enabled: false },
       manifest: {
         name: 'Tiyul · טיול',

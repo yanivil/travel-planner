@@ -1,11 +1,11 @@
 import { db, type TiyulDB } from '../db/db';
-import type { Trip, Day, Stop, Dismissal } from '../domain/types';
+import type { Trip, Day, Stop, Dismissal, Attachment } from '../domain/types';
 
 // D-020: every mutation is an Op carrying enough state to invert itself, so
 // undo is a store property, not a UI afterthought (undo UI lands in M1).
 export type Op =
-  | { t: 'trip/add'; trip: Trip; days?: Day[]; stops?: Stop[]; dismissals?: Dismissal[] }
-  | { t: 'trip/remove'; trip: Trip; days: Day[]; stops: Stop[]; dismissals: Dismissal[] }
+  | { t: 'trip/add'; trip: Trip; days?: Day[]; stops?: Stop[]; dismissals?: Dismissal[]; attachments?: Attachment[] }
+  | { t: 'trip/remove'; trip: Trip; days: Day[]; stops: Stop[]; dismissals: Dismissal[]; attachments?: Attachment[] }
   | { t: 'trip/update'; id: string; patch: Partial<Trip>; prev: Partial<Trip> }
   | { t: 'day/add'; day: Day; stops?: Stop[] }
   | { t: 'day/remove'; day: Day; stops: Stop[] }
@@ -15,7 +15,9 @@ export type Op =
   | { t: 'stop/update'; id: string; patch: Partial<Stop>; prev: Partial<Stop> }
   | { t: 'stop/move'; dayId: string; from: number; to: number }
   | { t: 'dismissal/add'; dismissal: Dismissal }
-  | { t: 'dismissal/remove'; dismissal: Dismissal };
+  | { t: 'dismissal/remove'; dismissal: Dismissal }
+  | { t: 'attachment/add'; attachment: Attachment }
+  | { t: 'attachment/remove'; attachment: Attachment };
 
 export function invert(op: Op): Op {
   switch (op.t) {
@@ -26,9 +28,10 @@ export function invert(op: Op): Op {
         days: op.days ?? [],
         stops: op.stops ?? [],
         dismissals: op.dismissals ?? [],
+        attachments: op.attachments ?? [],
       };
     case 'trip/remove':
-      return { t: 'trip/add', trip: op.trip, days: op.days, stops: op.stops, dismissals: op.dismissals };
+      return { t: 'trip/add', trip: op.trip, days: op.days, stops: op.stops, dismissals: op.dismissals, attachments: op.attachments ?? [] };
     case 'trip/update':
       return { t: 'trip/update', id: op.id, patch: op.prev, prev: op.patch };
     case 'day/add':
@@ -49,6 +52,10 @@ export function invert(op: Op): Op {
       return { t: 'dismissal/remove', dismissal: op.dismissal };
     case 'dismissal/remove':
       return { t: 'dismissal/add', dismissal: op.dismissal };
+    case 'attachment/add':
+      return { t: 'attachment/remove', attachment: op.attachment };
+    case 'attachment/remove':
+      return { t: 'attachment/add', attachment: op.attachment };
   }
 }
 
@@ -64,19 +71,28 @@ async function writeIndexes(target: TiyulDB, stops: Stop[]): Promise<void> {
 }
 
 export async function applyOp(op: Op, target: TiyulDB = db): Promise<void> {
-  await target.transaction('rw', target.trips, target.days, target.stops, target.dismissals, async () => {
+  await target.transaction(
+    'rw',
+    target.trips,
+    target.days,
+    target.stops,
+    target.dismissals,
+    target.attachments,
+    async () => {
     switch (op.t) {
       case 'trip/add': {
         await target.trips.add(op.trip);
         if (op.days?.length) await target.days.bulkAdd(op.days);
         if (op.stops?.length) await target.stops.bulkAdd(op.stops);
         if (op.dismissals?.length) await target.dismissals.bulkAdd(op.dismissals);
+        if (op.attachments?.length) await target.attachments.bulkAdd(op.attachments);
         break;
       }
       case 'trip/remove': {
         await target.stops.where('dayId').anyOf(op.days.map((d) => d.id)).delete();
         await target.days.where('tripId').equals(op.trip.id).delete();
         await target.dismissals.where('tripId').equals(op.trip.id).delete();
+        await target.attachments.where('tripId').equals(op.trip.id).delete();
         await target.trips.delete(op.trip.id);
         break;
       }
@@ -130,8 +146,17 @@ export async function applyOp(op: Op, target: TiyulDB = db): Promise<void> {
         await target.dismissals.delete(op.dismissal.id);
         break;
       }
+      case 'attachment/add': {
+        await target.attachments.put(op.attachment);
+        break;
+      }
+      case 'attachment/remove': {
+        await target.attachments.delete(op.attachment.id);
+        break;
+      }
     }
-  });
+  },
+  );
 }
 
 const HISTORY_CAP = 100;

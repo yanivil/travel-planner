@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, test, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n from '../i18n';
-import { db } from '../db/db';
+import { db, SCHEMA_VERSION } from '../db/db';
 import { resetHistory } from '../store/ops';
 import { TripView } from './TripView';
 
@@ -118,7 +118,7 @@ describe('TripView', () => {
       expect(html).toContain('North weekend');
       expect(html).toContain('08:00–10:30'); // computed schedule, not raw data
       expect(html).toContain('Candles 18:46'); // offline zmanim ride along (EN labels, HE data)
-      expect(html).toContain('name="tiyul-schema-version" content="4"');
+      expect(html).toContain(`name="tiyul-schema-version" content="${SCHEMA_VERSION}"`);
     } finally {
       URL.createObjectURL = origCreate;
       URL.revokeObjectURL = origRevoke;

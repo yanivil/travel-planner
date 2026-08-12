@@ -19,6 +19,8 @@ const OP_KEY: Record<Op['t'], string> = {
   'stop/move': 'opStopMove',
   'dismissal/add': 'opDismissalAdd',
   'dismissal/remove': 'opDismissalRemove',
+  'attachment/add': 'opAttachmentAdd',
+  'attachment/remove': 'opAttachmentRemove',
 };
 
 let toastSeq = 0;
@@ -28,8 +30,20 @@ export function App() {
   const [tripId, setTripId] = useState<string | null>(null);
   const [, bumpHistory] = useReducer((x: number) => x + 1, 0);
   const [toast, setToast] = useState<{ id: number; text: string } | null>(null);
+  const [online, setOnline] = useState(() => navigator.onLine);
 
   useEffect(() => subscribeHistory(bumpHistory), []);
+
+  useEffect(() => {
+    const up = () => setOnline(true);
+    const down = () => setOnline(false);
+    window.addEventListener('online', up);
+    window.addEventListener('offline', down);
+    return () => {
+      window.removeEventListener('online', up);
+      window.removeEventListener('offline', down);
+    };
+  }, []);
 
   useEffect(() => {
     if (!toast) return;
@@ -80,6 +94,7 @@ export function App() {
           {t('appTitle')}
         </button>
         <div className="row" style={{ gap: '0.3rem' }}>
+          {!online && <span className="chip warn">🔌 {t('offline')}</span>}
           <button
             type="button"
             className="btn-ghost"

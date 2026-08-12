@@ -196,19 +196,23 @@ describe('DayTimeline behavior (tested via the DOM, never internals)', () => {
 
     await user.click(screen.getByRole('button', { name: 'Acknowledge' }));
 
-    expect(await screen.findByText(/No conflicts/)).toBeInTheDocument();
+    // Ack/re-raise both update TWO live queries back-to-back (dismissals +
+    // the recomputed conflict list), so the panel re-renders twice in quick
+    // succession — a node captured by findBy can be REPLACED before its
+    // assertion runs ("element could not be found in the document", CI-only).
+    // waitFor + getBy re-queries on every poll; event-driven, no sleeps.
+    await waitFor(() => expect(screen.getByText(/No conflicts/)).toBeInTheDocument(), { timeout: 3000 });
     expect(screen.getByRole('button', { name: 'Acknowledged (1)' })).toBeInTheDocument();
     expect(await db.dismissals.count()).toBe(1);
 
     // and it can be re-raised — settle the data layer first, then the UI
-    // (CI machines are slow enough that the Dexie→liveQuery hop can exceed
-    // the default 1s findBy deadline; these waits are event-driven, not sleeps)
     await user.click(screen.getByRole('button', { name: 'Acknowledged (1)' }));
     await user.click(screen.getByRole('button', { name: 'Re-raise' }));
     await waitFor(async () => expect(await db.dismissals.count()).toBe(0), { timeout: 3000 });
-    expect(
-      await screen.findByText('The day ends 30 min after the 10:00 curfew', {}, { timeout: 3000 }),
-    ).toBeInTheDocument();
+    await waitFor(
+      () => expect(screen.getByText('The day ends 30 min after the 10:00 curfew')).toBeInTheDocument(),
+      { timeout: 3000 },
+    );
   });
 
   test('opening the details editor and setting a last-entry raises the arrival conflict', async () => {
@@ -304,6 +308,31 @@ describe('DayTimeline behavior (tested via the DOM, never internals)', () => {
 
     const msgs = await screen.findAllByText(/Driving after candle-lighting \(18:46\) — leaving "Lookout"/);
     expect(msgs.length).toBeGreaterThanOrEqual(2);
+  });
+
+  test('a wallet file attaches to a stop, lists, and deletes (D-028)', async () => {
+    await Promise.all([db.attachments.clear()]);
+    await db.stops.add(stop('a', 0, { name: 'Timna' }));
+    const origCreate = URL.createObjectURL;
+    URL.createObjectURL = (() => 'blob:test') as typeof URL.createObjectURL;
+    URL.revokeObjectURL = (() => undefined) as typeof URL.revokeObjectURL;
+    try {
+      const user = userEvent.setup();
+      render(<DayTimeline dayId={day.id} />);
+      await user.click(await screen.findByRole('button', { name: 'Details: Timna' }));
+
+      const file = new File([new Uint8Array([137, 80, 78, 71])], 'ticket.png', { type: 'image/png' });
+      await user.upload(screen.getByLabelText('Attach file — Timna'), file);
+
+      expect(await screen.findByText('ticket.png')).toBeInTheDocument();
+      expect(await db.attachments.count()).toBe(1);
+      expect((await db.attachments.toArray())[0]?.tripId).toBe(day.tripId);
+
+      await user.click(screen.getByRole('button', { name: 'Delete: ticket.png' }));
+      await waitFor(async () => expect(await db.attachments.count()).toBe(0));
+    } finally {
+      URL.createObjectURL = origCreate;
+    }
   });
 
   test('renders Hebrew with RTL document direction (component-level RTL assertion)', async () => {
