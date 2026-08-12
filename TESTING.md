@@ -13,7 +13,7 @@ What breaks a family trip is what we test hardest: wrong arrival times, a missed
 | Unit | **Vitest** (+ **fast-check** for property-based) | Pure logic: constraint rules, timeline recompute, money math, time/zmanim wrappers | every PR, < 30s |
 | Component | Vitest + **React Testing Library** + user-event, **MSW** (network), **fake-indexeddb** (Dexie) | Timeline interactions, conflict badges, RSVP grid, list claims — behavior via the DOM, never implementation internals | every PR |
 | Contract | Vitest against recorded fixtures | Every `RoutingProvider` implementation passes one shared contract suite; sync-queue merge rules | every PR |
-| End-to-end | **Playwright** (chromium desktop + iPhone-viewport webkit) | Real built PWA, real IndexedDB/service worker; network mocked at the route layer | every PR (smoke) + full suite nightly & pre-merge to main |
+| End-to-end | **Playwright** (chromium desktop + iPhone-viewport webkit + Android-viewport chromium — owner device class) | Real built PWA, real IndexedDB/service worker; network mocked at the route layer | every PR (smoke) + full suite nightly & pre-merge to main |
 | Accessibility | axe-core (vitest-axe + @axe-core/playwright) | Core screens pass with no serious violations, in LTR **and RTL** | every PR |
 
 Why Playwright over Cypress: **multi-context** in one test (organizer tab + accountless viewer tab simultaneously — our share-link model demands it), first-class offline emulation, mobile viewports, trace viewer for failures.
@@ -54,7 +54,7 @@ Acceptance suites (full runs): the spec's scenarios **S1–S3** (PRODUCT_DESIGN.
 
 ## 5. CI pipeline (lands with the M0 scaffold — first code PR)
 
-GitHub Actions on every PR: install → typecheck (`tsc --noEmit`) → lint → `npm audit` (high+) → `vitest run --coverage` (matrix: `TZ=UTC`, `TZ=Asia/Jerusalem`) → Playwright smoke (chromium + iPhone viewport; traces uploaded on failure) → axe checks → **bundle-size report as a PR comment** (size-limit; catches "300 KB for a date picker"). From M1: **Lighthouse budgets as advisory** (PWA on mid-range phones in the desert). Nightly: full E2E + acceptance suites + a **non-blocking live-API canary** against real OpenRouteService/Open-Meteo endpoints (catches API drift our mocks hide). Once the first CI run is green, **branch protection on `main`** (required checks + PR review) gets enabled — owner action, we'll flag it in the M0 PR.
+GitHub Actions on every PR: install → typecheck (`tsc --noEmit`) → lint → `npm audit` (high+) → `vitest run --coverage` (matrix: `TZ=UTC`, `TZ=Asia/Jerusalem`) → Playwright smoke (chromium + iPhone + Android viewports; traces uploaded on failure) → axe checks → **bundle-size report as a PR comment** (size-limit; catches "300 KB for a date picker"). From M1: **Lighthouse budgets as advisory** (PWA on mid-range phones in the desert). Nightly: full E2E + acceptance suites + a **non-blocking live-API canary** against real OpenRouteService/Open-Meteo endpoints (catches API drift our mocks hide). Once the first CI run is green, **branch protection on `main`** (required checks + PR review) gets enabled — owner action, we'll flag it in the M0 PR.
 
 Local commands (wired in M0): `npm test` · `npm run test:watch` · `npm run e2e` · `npm run e2e:ui`.
 

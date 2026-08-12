@@ -6,6 +6,11 @@ Design-phase history (PRs #1–#4) lives in DECISIONS.md and the PRs themselves;
 
 ## [Unreleased]
 
+### Added — install icons & security hardening (PR #37)
+
+- **A real app icon on your phone.** Proper 192/512 launcher icons (including Android's adaptive "maskable" shape) — installing Tiyul now puts a sharp, correctly-shaped icon on the home screen, and iPhones get one too. The icons ride the offline bundle, so an installed app owns its artwork with zero bars.
+- **Security:** the site now enforces a strict Content-Security-Policy — everything the app runs and loads must come from the app itself. The policy is verified by the test suite on every change.
+
 ### Added — offline bundle v1 (PR #34)
 
 - **Tiyul now works in airplane mode.** Visit once online, and from then on the app opens and your whole plan — timeline, pins, conflicts, Shabbat times — loads with zero bars. Verified end-to-end with the network cut.

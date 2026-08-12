@@ -21,6 +21,13 @@ export default defineConfig({
       use: { ...devices['iPhone 14'], serviceWorkers: 'block' },
       testIgnore: /offline\.spec\.ts/,
     },
+    {
+      // owner's device is a Galaxy S24+; Pixel 7 is Playwright's closest
+      // built-in Android descriptor (chromium engine, mobile UA/viewport/touch)
+      name: 'android',
+      use: { ...devices['Pixel 7'], serviceWorkers: 'block' },
+      testIgnore: /offline\.spec\.ts/,
+    },
     // the offline suite is the one place service workers run — Chromium only,
     // per Playwright's SW support matrix (TESTING.md §7)
     {
