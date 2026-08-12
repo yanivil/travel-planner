@@ -19,7 +19,7 @@ test('security headers ride every response and the app runs clean under CSP', as
   // drive the app far enough to surface runtime CSP breaks (styles, i18n, live queries)
   await page.getByRole('button', { name: 'טעינת טיול הדגמה (יהל)' }).click();
   await expect(page.getByRole('heading', { name: 'סופ״ש ביהל (הדגמה)' })).toBeVisible();
-  await expect(page.getByText('14:00–15:00')).toBeVisible();
+  await expect(page.getByText('12:30–16:00')).toBeVisible();
   expect(violations).toEqual([]);
 });
 

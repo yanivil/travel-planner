@@ -147,16 +147,16 @@ test('HTML export downloads a self-contained file that opens with zero network (
   const fs = await import('node:fs/promises');
   const content = await fs.readFile(filePath!, 'utf-8');
   expect(content).toContain('tiyul-schema-version');
-  expect(content).toContain('חמישי — הגעה');
+  expect(content).toContain('חמישי — תמנע והגעה');
 
   // the true zero-bars proof: open the downloaded file itself.
   // Chromium only — Playwright's WebKit doesn't reliably load file:// pages
   // (same family of headless-WebKit limits recorded in TESTING.md §7).
   if (browserName === 'chromium') {
     await page.goto('file://' + filePath);
-    await expect(page.getByText('שישי — תמנע')).toBeVisible();
+    await expect(page.getByText('שישי — בריכה ואילת')).toBeVisible();
     await expect(page.getByText(/Candles 18:46/)).toBeVisible(); // EN labels, HE data
-    await expect(page.getByText('14:00–15:00')).toBeVisible();
+    await expect(page.getByText('12:30–16:00')).toBeVisible();
   }
 });
 
