@@ -20,7 +20,7 @@ test('shell, plan, zmanim, and wallet all survive a fully offline reload', async
   await page.getByRole('button', { name: 'טעינת טיול הדגמה (יהל)' }).click();
   await expect(page.getByRole('heading', { name: 'סופ״ש ביהל (הדגמה)' })).toBeVisible();
 
-  // attach a ticket to the first Thursday stop
+  // attach a ticket to the Thursday check-in stop
   await page.getByRole('button', { name: /פרטים: הגעה וקבלת חדרים/ }).click();
   await page
     .getByLabel(/צירוף קובץ — הגעה וקבלת חדרים/)
@@ -37,15 +37,15 @@ test('shell, plan, zmanim, and wallet all survive a fully offline reload', async
   await page.evaluate(() => window.dispatchEvent(new Event('offline')));
   await expect(page.getByText('אופליין')).toBeVisible(); // offline indicator
   await page.getByRole('button', { name: 'סופ״ש ביהל (הדגמה)' }).click();
-  await expect(page.getByRole('button', { name: 'חמישי — הגעה' })).toBeVisible();
-  await expect(page.getByText('14:00–15:00')).toBeVisible(); // computed plan
+  await expect(page.getByRole('button', { name: 'חמישי — תמנע והגעה' })).toBeVisible();
+  await expect(page.getByText('12:30–16:00')).toBeVisible(); // computed plan (v6: Timna first)
 
   // offline zmanim still compute (hebcal is bundled, no network involved)
-  await page.getByRole('button', { name: 'שישי — תמנע' }).click();
+  await page.getByRole('button', { name: 'שישי — בריכה ואילת' }).click();
   await expect(page.getByText('הדלקת נרות 18:46')).toBeVisible();
 
   // the wallet blob decodes from IndexedDB — the entrance-gate moment
-  await page.getByRole('button', { name: 'חמישי — הגעה' }).click();
+  await page.getByRole('button', { name: 'חמישי — תמנע והגעה' }).click();
   await page.getByRole('button', { name: /פרטים: הגעה וקבלת חדרים/ }).click();
   await expect(page.getByText('ticket.png')).toBeVisible();
   const thumb = page.locator('img.att-thumb').first();

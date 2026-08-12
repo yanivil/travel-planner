@@ -26,46 +26,47 @@ interface DemoDay {
 
 const ZONE = 'Asia/Jerusalem';
 
+// Mirrors the family's vacation_schedule v6 (2026-08): Timna on the way in
+// (Thursday), pool mornings, Eilat on Friday afternoon, a quiet kibbutz
+// Shabbat, Sunday departure. Pool runs in sessions: 10:00–14:00 / 16:00–19:00.
+// v6 is deliberately conflict-free out of the box — the engine showcase is
+// flipping שמירת שבת to 'soft', which flags the Friday-night drive home
+// from Eilat (leg arrives 22:00, candles 18:46). E2E asserts both states.
 const DAYS: DemoDay[] = [
   {
-    title: 'חמישי — הגעה',
+    title: 'חמישי — תמנע והגעה',
     date: '2026-08-27',
-    startMin: 14 * 60,
+    startMin: 12 * 60 + 30,
     stops: [
-      { name: 'הגעה וקבלת חדרים — קיבוץ יהל', kind: 'lodging', durationMin: 60, wazeQuery: 'קיבוץ יהל' },
-      { name: 'התארגנות ומנוחה', kind: 'free', durationMin: 60 },
-      { name: 'בריכה', kind: 'activity', durationMin: 150, openMin: 10 * 60, closeMin: 19 * 60 },
+      { name: 'פארק תמנע — מסלול ברכב וסיום באגם', kind: 'activity', durationMin: 210, legAfterMin: 30, wazeQuery: 'פארק תמנע', lastEntryMin: 16 * 60 + 30 },
+      { name: 'הגעה וקבלת חדרים — קיבוץ יהל', kind: 'lodging', durationMin: 15, wazeQuery: 'קיבוץ יהל' },
+      { name: 'בריכה ומנוחה', kind: 'activity', durationMin: 105, openMin: 16 * 60, closeMin: 19 * 60 },
       { name: 'ערב על האש', kind: 'meal', durationMin: 120 },
     ],
   },
   {
-    title: 'שישי — תמנע',
+    title: 'שישי — בריכה ואילת',
     date: '2026-08-28',
     startMin: 8 * 60,
     stops: [
-      { name: 'ארוחת בוקר בקיבוץ', kind: 'meal', durationMin: 60, legAfterMin: 25 },
-      { name: 'פארק תמנע — מסלול רכוב', kind: 'activity', durationMin: 180, wazeQuery: 'פארק תמנע', lastEntryMin: 16 * 60 + 30 },
-      { name: 'האגם בתמנע', kind: 'activity', durationMin: 90, legAfterMin: 25 },
-      { name: 'צהריים ומנוחה', kind: 'meal', durationMin: 60 },
-      { name: 'זמן חופשי', kind: 'free', durationMin: 40 },
-      { name: 'בריכה', kind: 'activity', durationMin: 150, openMin: 10 * 60, closeMin: 19 * 60 },
-      { name: 'ערב על האש', kind: 'meal', durationMin: 120 },
+      { name: 'ארוחת בוקר בקיבוץ', kind: 'meal', durationMin: 120 },
+      { name: 'בריכה בקיבוץ ומנוחה', kind: 'activity', durationMin: 180, openMin: 10 * 60, closeMin: 14 * 60 },
+      { name: 'התארגנות ומקלחות', kind: 'free', durationMin: 30, legAfterMin: 40 },
+      { name: 'אילת — ג׳מבו, אייס מול ובבילון', kind: 'activity', durationMin: 320, wazeQuery: 'אילת' },
+      { name: 'ארוחת ערב באילת', kind: 'meal', durationMin: 110, legAfterMin: 40 },
+      { name: 'חזרה לקיבוץ יהל', kind: 'lodging', durationMin: 15 },
     ],
   },
   {
-    title: 'שבת — בריכה ואילת',
+    title: 'שבת — קיבוץ ובריכה',
     date: '2026-08-29',
     startMin: 8 * 60 + 30,
-    // demo of a soft conflict: the day ends 22:30, half an hour past this curfew
-    curfewMin: 22 * 60,
     stops: [
-      { name: 'ארוחת בוקר בקיבוץ', kind: 'meal', durationMin: 60 },
-      { name: 'זמן חופשי', kind: 'free', durationMin: 30 },
-      { name: 'בריכה', kind: 'activity', durationMin: 180, openMin: 10 * 60, closeMin: 19 * 60 },
-      { name: 'התארגנות ומקלחות', kind: 'free', durationMin: 30, legAfterMin: 45 },
-      { name: 'אילת — קניון ובילוי', kind: 'activity', durationMin: 315, wazeQuery: 'אילת' },
-      { name: 'ארוחת ערב באילת', kind: 'meal', durationMin: 120, legAfterMin: 45 },
-      { name: 'חזרה ליהל', kind: 'lodging', durationMin: 15 },
+      { name: 'ארוחת בוקר בקיבוץ', kind: 'meal', durationMin: 90 },
+      { name: 'בריכה וזמן חופשי', kind: 'activity', durationMin: 240, openMin: 10 * 60, closeMin: 14 * 60 },
+      { name: 'צהריים — נקניקיות וביצים בפיתה', kind: 'meal', durationMin: 120 },
+      { name: 'בריכה — סבב ערב', kind: 'activity', durationMin: 150, openMin: 16 * 60, closeMin: 19 * 60 },
+      { name: 'ערב על האש', kind: 'meal', durationMin: 120 },
     ],
   },
   {
@@ -73,10 +74,9 @@ const DAYS: DemoDay[] = [
     date: '2026-08-30',
     startMin: 8 * 60 + 30,
     stops: [
-      { name: 'ארוחת בוקר בקיבוץ', kind: 'meal', durationMin: 60 },
-      { name: 'זמן חופשי', kind: 'free', durationMin: 30 },
-      { name: 'בריכה', kind: 'activity', durationMin: 60, openMin: 10 * 60, closeMin: 19 * 60 },
-      { name: 'איסוף ויציאה הביתה', kind: 'free', durationMin: 30 },
+      { name: 'ארוחת בוקר ומנוחה', kind: 'meal', durationMin: 90 },
+      { name: 'בריכה', kind: 'activity', durationMin: 60, openMin: 10 * 60, closeMin: 14 * 60 },
+      { name: 'התארגנות ויציאה הביתה', kind: 'free', durationMin: 30 },
     ],
   },
 ];

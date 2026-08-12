@@ -6,6 +6,11 @@ Design-phase history (PRs #1–#4) lives in DECISIONS.md and the PRs themselves;
 
 ## [Unreleased]
 
+### Changed — demo trip updated to the family's v6 schedule (PR #38)
+
+- The Yahel demo now mirrors the real (sanitized) v6 plan: **Timna Park on the way in** (Thursday 12:30, finishing at the lake), **pool mornings in sessions** (10:00–14:00 / 16:00–19:00), **Eilat moved to Friday afternoon** (Jumbo/Ice Mall/Babylon, dinner in town, back 22:00), a quiet kibbutz Shabbat with an on-the-fire dinner, and an 11:00 Sunday departure.
+- The demo now loads **conflict-free — like the actual plan**. The engine showcase moved to a real tension in the data: flip שמירת שבת to "אזהרות (רך)" and the Friday-night drive home from Eilat (arrives 22:00, candles 18:46) gets flagged. The old artificial Saturday curfew miss is gone.
+
 ### Added — install icons & security hardening (PR #37)
 
 - **A real app icon on your phone.** Proper 192/512 launcher icons (including Android's adaptive "maskable" shape) — installing Tiyul now puts a sharp, correctly-shaped icon on the home screen, and iPhones get one too. The icons ride the offline bundle, so an installed app owns its artwork with zero bars.
