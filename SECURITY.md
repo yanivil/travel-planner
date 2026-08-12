@@ -19,7 +19,7 @@ Rule of thumb: **unshared trip = only on your device; shared trip = your device 
 - **Repo:** public; secret scanning + push protection enabled; Dependabot alerts, security updates, and weekly update PRs enabled; full-history audit found no secrets and no personal data (fixtures are sanitized; real trip files stay in gitignored `local/`).
 - **CI:** `GITHUB_TOKEN` restricted to `contents: read`; no secrets used by workflows; `npm audit` (high+) blocks merges.
 - **`main`:** protected by an active ruleset — PR-only, required status checks, no force-push/deletion, empty bypass list.
-- **Deployment (Vercel):** static hosting only, no server code or env vars; security headers via `vercel.json` (nosniff, DENY framing, strict referrer, minimal Permissions-Policy). Deployment Protection = **Standard**: previews require the owner's Vercel login; production is public **by design** — the accountless share-link model depends on it.
+- **Deployment (Vercel):** static hosting only, no server code or env vars; security headers via `vercel.json` (strict self-only **CSP**, nosniff, DENY framing, strict referrer, minimal Permissions-Policy) — mirrored into the E2E preview server so header regressions fail CI (D-029). Deployment Protection = **Standard**: previews require the owner's Vercel login; production is public **by design** — the accountless share-link model depends on it.
 - **App:** React auto-escaping throughout (no `dangerouslySetInnerHTML`/`eval`); the only external navigation is Waze deep links, URL-encoded with `rel="noreferrer"`.
 
 ## Accepted risks & deferred items
