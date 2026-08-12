@@ -43,8 +43,8 @@ async function assertIndexIntegrity(): Promise<void> {
 
 describe('invert is an involution (on canonical ops — arrays always present)', () => {
   const ops: Op[] = [
-    { t: 'trip/add', trip, days: [], stops: [], dismissals: [] },
-    { t: 'trip/remove', trip, days: [day], stops: [stop('a', 0)], dismissals: [] },
+    { t: 'trip/add', trip, days: [], stops: [], dismissals: [], attachments: [] },
+    { t: 'trip/remove', trip, days: [day], stops: [stop('a', 0)], dismissals: [], attachments: [] },
     { t: 'trip/update', id: trip.id, patch: { name: 'B' }, prev: { name: 'A' } },
     { t: 'day/add', day, stops: [] },
     { t: 'day/remove', day, stops: [stop('a', 0)] },
@@ -159,6 +159,37 @@ describe('undo (D-020: every op is reversible)', () => {
 
   test('redo on empty future is a safe no-op', async () => {
     expect(await redo(db)).toBeNull();
+  });
+
+  test('wallet attachments are ops: blob survives add/undo/redo and cascades with the trip (D-028)', async () => {
+    await dispatch({ t: 'trip/add', trip }, db);
+    const attachment = {
+      id: 'att-1',
+      tripId: trip.id,
+      stopId: 'stop-x',
+      name: 'ticket.png',
+      mimeType: 'image/png',
+      data: new Blob([new Uint8Array([1, 2, 3, 4])], { type: 'image/png' }),
+      createdAt: '2026-08-02T00:00:00.000Z',
+    };
+    await dispatch({ t: 'attachment/add', attachment }, db);
+    expect(await db.attachments.count()).toBe(1);
+
+    await undo(db);
+    expect(await db.attachments.count()).toBe(0);
+    await redo(db);
+    const restored = await db.attachments.get('att-1');
+    expect(restored?.name).toBe('ticket.png');
+    // fake-indexeddb's cloned Blob is opaque to jsdom (no readable size/bytes)
+    // — presence + metadata here; BYTE-level integrity is proven in the
+    // offline E2E, where a real browser decodes the stored PNG from IndexedDB.
+    expect(restored?.mimeType).toBe('image/png');
+    expect(restored?.data).toBeDefined();
+
+    await applyOp({ t: 'trip/remove', trip, days: [], stops: [], dismissals: [], attachments: [attachment] }, db);
+    expect(await db.attachments.count()).toBe(0);
+    await applyOp({ t: 'trip/add', trip, days: [], stops: [], dismissals: [], attachments: [attachment] }, db);
+    expect(await db.attachments.count()).toBe(1);
   });
 
   test('acknowledging a conflict is an op: applies, cascades on trip delete, undoes (D-020)', async () => {

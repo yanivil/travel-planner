@@ -30,7 +30,8 @@ export function TripsList({ onOpen }: { onOpen: (tripId: string) => void }) {
     const days = await db.days.where('tripId').equals(tripId).toArray();
     const stops = await db.stops.where('dayId').anyOf(days.map((d) => d.id)).toArray();
     const dismissals = await db.dismissals.where('tripId').equals(tripId).toArray();
-    await dispatch({ t: 'trip/remove', trip, days, stops, dismissals });
+    const attachments = await db.attachments.where('tripId').equals(tripId).toArray();
+    await dispatch({ t: 'trip/remove', trip, days, stops, dismissals, attachments });
   };
 
   const loadDemo = async () => {

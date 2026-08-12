@@ -51,6 +51,18 @@ export interface Stop {
   note?: string;
 }
 
+// v5: a wallet attachment (spec §4.3) — ticket/QR/PDF stored as a Blob so the
+// entrance-gate moment works with zero bars. Capped at 10MB per file (D-028).
+export interface Attachment {
+  id: string;
+  tripId: string;
+  stopId: string;
+  name: string;
+  mimeType: string;
+  data: Blob;
+  createdAt: string; // ISO, audit only
+}
+
 // v3: an acknowledged conflict (D-020) — id IS the conflict's stable identity.
 export interface Dismissal {
   id: string;

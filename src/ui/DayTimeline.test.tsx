@@ -306,6 +306,31 @@ describe('DayTimeline behavior (tested via the DOM, never internals)', () => {
     expect(msgs.length).toBeGreaterThanOrEqual(2);
   });
 
+  test('a wallet file attaches to a stop, lists, and deletes (D-028)', async () => {
+    await Promise.all([db.attachments.clear()]);
+    await db.stops.add(stop('a', 0, { name: 'Timna' }));
+    const origCreate = URL.createObjectURL;
+    URL.createObjectURL = (() => 'blob:test') as typeof URL.createObjectURL;
+    URL.revokeObjectURL = (() => undefined) as typeof URL.revokeObjectURL;
+    try {
+      const user = userEvent.setup();
+      render(<DayTimeline dayId={day.id} />);
+      await user.click(await screen.findByRole('button', { name: 'Details: Timna' }));
+
+      const file = new File([new Uint8Array([137, 80, 78, 71])], 'ticket.png', { type: 'image/png' });
+      await user.upload(screen.getByLabelText('Attach file — Timna'), file);
+
+      expect(await screen.findByText('ticket.png')).toBeInTheDocument();
+      expect(await db.attachments.count()).toBe(1);
+      expect((await db.attachments.toArray())[0]?.tripId).toBe(day.tripId);
+
+      await user.click(screen.getByRole('button', { name: 'Delete: ticket.png' }));
+      await waitFor(async () => expect(await db.attachments.count()).toBe(0));
+    } finally {
+      URL.createObjectURL = origCreate;
+    }
+  });
+
   test('renders Hebrew with RTL document direction (component-level RTL assertion)', async () => {
     await setLang('he');
     await db.stops.add(stop('a', 0, { name: 'בריכה', durationMin: 150 }));

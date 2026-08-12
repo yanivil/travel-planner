@@ -136,6 +136,12 @@ button:focus-visible, input:focus-visible, select:focus-visible, a:focus-visible
 .clear-btn { min-height: 1.6rem; padding: 0 0.4rem; font-size: 0.8rem; }
 
 .chip.sandy { color: var(--sand); border-color: var(--sand); }
+.att-block { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; width: 100%; }
+.att-row { display: inline-flex; align-items: center; gap: 0.3rem; background: var(--panel-2); border: 1px solid var(--line); border-radius: 8px; padding: 0.15rem 0.5rem; font-size: 0.85rem; }
+.att-thumb { height: 28px; width: 28px; object-fit: cover; border-radius: 4px; }
+.att-add { display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; color: var(--muted); }
+.att-add input[type='file'] { max-width: 15rem; font-size: 0.8rem; min-height: auto; padding: 0.2rem; }
+
 .toast {
   position: fixed; bottom: 1rem; left: 50%; transform: translateX(-50%);
   background: var(--ink); color: var(--bg);

@@ -6,6 +6,12 @@ Design-phase history (PRs #1–#4) lives in DECISIONS.md and the PRs themselves;
 
 ## [Unreleased]
 
+### Added — offline bundle v1 (PR #34)
+
+- **Tiyul now works in airplane mode.** Visit once online, and from then on the app opens and your whole plan — timeline, pins, conflicts, Shabbat times — loads with zero bars. Verified end-to-end with the network cut.
+- **ארנק (Wallet):** attach tickets, QR codes, and PDFs to any stop (ⓘ → צירוף קובץ, up to 10MB each). Images show a thumbnail, everything opens offline at the entrance gate, deletes are undoable, and files ride along when a trip is deleted/restored.
+- **🔌 offline indicator** in the header, and the app requests durable storage on first load (Android grants it once installed — no more eviction risk).
+
 ### Added — single-file HTML export (PR #31)
 
 - **ייצוא (HTML)** on any trip downloads one self-contained file: the full computed plan — times, drive legs, 📌 pins, zmanim, curfews, open conflicts, Waze links — that opens **from the file itself with zero network**, prints cleanly, and can be sent in WhatsApp. The plan is never hostage (spec §4.7).

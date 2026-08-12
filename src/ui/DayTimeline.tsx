@@ -283,6 +283,7 @@ export function DayTimeline({ dayId }: { dayId: string }) {
                   <StopRow
                     key={stop.id}
                     stop={stop}
+                    tripId={day.tripId}
                     scheduled={sched}
                     isFirst={i === 0}
                     isLast={i === stops.length - 1}

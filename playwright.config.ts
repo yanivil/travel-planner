@@ -7,13 +7,27 @@ export default defineConfig({
   retries: 0,
   use: {
     baseURL: 'http://localhost:4173',
-    // non-offline suites block service workers for determinism (TESTING.md §7)
-    serviceWorkers: 'block',
     trace: 'retain-on-failure',
   },
   projects: [
-    { name: 'chromium', use: { ...devices['Desktop Chrome'] } },
-    { name: 'iphone', use: { ...devices['iPhone 14'] } },
+    // non-offline suites block service workers for determinism (TESTING.md §7)
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'], serviceWorkers: 'block' },
+      testIgnore: /offline\.spec\.ts/,
+    },
+    {
+      name: 'iphone',
+      use: { ...devices['iPhone 14'], serviceWorkers: 'block' },
+      testIgnore: /offline\.spec\.ts/,
+    },
+    // the offline suite is the one place service workers run — Chromium only,
+    // per Playwright's SW support matrix (TESTING.md §7)
+    {
+      name: 'offline-chromium',
+      use: { ...devices['Desktop Chrome'] },
+      testMatch: /offline\.spec\.ts/,
+    },
   ],
   webServer: {
     command: 'npm run build && npm run preview -- --port 4173 --strictPort',

@@ -1,5 +1,5 @@
 import Dexie, { type EntityTable } from 'dexie';
-import type { Trip, Day, Stop, Dismissal } from '../domain/types';
+import type { Trip, Day, Stop, Dismissal, Attachment } from '../domain/types';
 
 // D-019: the schema is versioned from day one. Every version bump here MUST
 // ship a Dexie upgrade() and a migration test that opens a fixture database
@@ -8,7 +8,8 @@ import type { Trip, Day, Stop, Dismissal } from '../domain/types';
 // v3 (M1 #14): opening-hours fields on stops, Day.curfewMin,
 //              Trip.maxDriveStretchMin, and the dismissals table (D-020).
 // v4 (M1 #15): Day.lat/lng/locationName for zmanim, Trip.observance (D-027).
-export const SCHEMA_VERSION = 4;
+// v5 (M1 #19): the attachments table — wallet blobs per stop (D-028).
+export const SCHEMA_VERSION = 5;
 export const DB_NAME = 'tiyul';
 
 const STORES_V1 = {
@@ -22,11 +23,17 @@ const STORES_V3 = {
   dismissals: 'id, tripId',
 };
 
+const STORES_V5 = {
+  ...STORES_V3,
+  attachments: 'id, tripId, stopId',
+};
+
 export type TiyulDB = Dexie & {
   trips: EntityTable<Trip, 'id'>;
   days: EntityTable<Day, 'id'>;
   stops: EntityTable<Stop, 'id'>;
   dismissals: EntityTable<Dismissal, 'id'>;
+  attachments: EntityTable<Attachment, 'id'>;
 };
 
 /** The v1 schema exactly as shipped in M0 — kept for migration tests. */
@@ -81,7 +88,8 @@ export function defineSchemaV3(dexie: Dexie): void {
     });
 }
 
-export function defineSchema(dexie: Dexie): void {
+/** The v4 schema exactly as shipped with Shabbat awareness — for migration tests. */
+export function defineSchemaV4(dexie: Dexie): void {
   defineSchemaV3(dexie);
   dexie
     .version(4)
@@ -103,6 +111,12 @@ export function defineSchema(dexie: Dexie): void {
           if (!('observance' in trip)) trip.observance = 'none';
         });
     });
+}
+
+export function defineSchema(dexie: Dexie): void {
+  defineSchemaV4(dexie);
+  // v5 adds a table only — no row backfills needed
+  dexie.version(5).stores(STORES_V5);
 }
 
 export function createDb(name: string = DB_NAME): TiyulDB {
