@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n, { setLang } from '../i18n';
 import { db } from '../db/db';
-import { resetHistory } from '../store/ops';
+import { redo, resetHistory, undo } from '../store/ops';
 import type { Day, Stop } from '../domain/types';
 import { DayTimeline } from './DayTimeline';
 
@@ -213,6 +213,30 @@ describe('DayTimeline behavior (tested via the DOM, never internals)', () => {
       () => expect(screen.getByText('The day ends 30 min after the 10:00 curfew')).toBeInTheDocument(),
       { timeout: 3000 },
     );
+  });
+
+  test('a typed numeric burst is one undo step, sealed on blur (#36)', async () => {
+    await db.stops.add(stop('a', 0, { name: 'Dinner', durationMin: 150 }));
+    const user = userEvent.setup();
+    render(<DayTimeline dayId={day.id} />);
+    const field = await screen.findByLabelText('Duration (min) — Dinner');
+
+    await user.clear(field);
+    await user.type(field, '90'); // two keystrokes: 9 → 90
+    await user.tab(); // blur seals the burst
+    await user.clear(field); // second, separate burst
+    await user.type(field, '75');
+    await user.tab();
+    await waitFor(async () => expect((await db.stops.get('a'))?.durationMin).toBe(75));
+
+    await undo(db); // one step back per burst, not per keystroke
+    await waitFor(async () => expect((await db.stops.get('a'))?.durationMin).toBe(90));
+    await undo(db);
+    await waitFor(async () => expect((await db.stops.get('a'))?.durationMin).toBe(150));
+    expect(await screen.findByDisplayValue('150')).toBeInTheDocument();
+
+    await redo(db);
+    await waitFor(async () => expect((await db.stops.get('a'))?.durationMin).toBe(90));
   });
 
   test('opening the details editor and setting a last-entry raises the arrival conflict', async () => {

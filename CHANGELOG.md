@@ -6,6 +6,10 @@ Design-phase history (PRs #1–#4) lives in DECISIONS.md and the PRs themselves;
 
 ## [Unreleased]
 
+### Changed — typing a number is one undo step (PR #39)
+
+- Undo no longer replays numeric typing digit by digit: entering "333" into a duration/drive field used to take three undos to reverse — now the whole typing burst is a single step, back to the value you started from. Leaving the field ends the burst, so separate edits stay separate steps.
+
 ### Changed — demo trip updated to the family's v6 schedule (PR #38)
 
 - The Yahel demo now mirrors the real (sanitized) v6 plan: **Timna Park on the way in** (Thursday 12:30, finishing at the lake), **pool mornings in sessions** (10:00–14:00 / 16:00–19:00), **Eilat moved to Friday afternoon** (Jumbo/Ice Mall/Babylon, dinner in town, back 22:00), a quiet kibbutz Shabbat with an on-the-fire dinner, and an 11:00 Sunday departure.

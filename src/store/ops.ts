@@ -183,14 +183,50 @@ export const canRedo = () => future.length > 0;
 export function resetHistory(): void {
   history.length = 0;
   future.length = 0;
+  chain = null;
   notify();
 }
 
-export async function dispatch(op: Op, target: TiyulDB = db): Promise<void> {
+type CoalescibleOp = Extract<Op, { t: 'trip/update' } | { t: 'day/update' } | { t: 'stop/update' }>;
+
+export interface DispatchOpts {
+  /** Fold this op into the previous dispatch when both target the same single
+   *  field of the same entity — one typing burst = one undo step (#36). The
+   *  chain breaks on sealHistory(), any other op, undo/redo, or reset. */
+  coalesce?: boolean;
+}
+
+// The open coalescing chain: which history entry a same-field dispatch may
+// fold into. Deliberately no timers/clocks — sealing is event-driven (blur),
+// so behavior is deterministic under test and on slow devices alike.
+let chain: { op: CoalescibleOp; key: string } | null = null;
+
+const coalesceLink = (op: Op): { op: CoalescibleOp; key: string } | null => {
+  if (op.t !== 'trip/update' && op.t !== 'day/update' && op.t !== 'stop/update') return null;
+  const fields = Object.keys(op.patch);
+  return fields.length === 1 ? { op, key: `${op.t}:${op.id}:${fields[0]}` } : null;
+};
+
+/** Ends the open coalescing chain (NumberField calls this on blur). */
+export function sealHistory(): void {
+  chain = null;
+}
+
+export async function dispatch(op: Op, target: TiyulDB = db, opts?: DispatchOpts): Promise<void> {
   await applyOp(op, target);
+  const link = opts?.coalesce ? coalesceLink(op) : null;
+  if (link && chain && chain.key === link.key && history[history.length - 1] === chain.op) {
+    // unbroken same-field chain: fold into the open entry — its prev keeps the
+    // pre-burst value, so a single undo restores what the user started from
+    (chain.op as { patch: CoalescibleOp['patch'] }).patch = link.op.patch;
+    future.length = 0;
+    notify();
+    return;
+  }
   history.push(op);
   if (history.length > HISTORY_CAP) history.shift();
   future.length = 0; // a new edit forks the timeline — redo history dies
+  chain = link;
   notify();
 }
 
@@ -198,6 +234,7 @@ export async function dispatch(op: Op, target: TiyulDB = db): Promise<void> {
 export async function undo(target: TiyulDB = db): Promise<Op | null> {
   const op = history.pop();
   if (!op) return null;
+  chain = null; // history navigation is a chain boundary
   await applyOp(invert(op), target);
   future.push(op);
   notify();
@@ -208,6 +245,7 @@ export async function undo(target: TiyulDB = db): Promise<Op | null> {
 export async function redo(target: TiyulDB = db): Promise<Op | null> {
   const op = future.pop();
   if (!op) return null;
+  chain = null; // history navigation is a chain boundary
   await applyOp(op, target);
   history.push(op);
   notify();
