@@ -159,12 +159,16 @@ export function TripView({ tripId, onBack }: { tripId: string; onBack: () => voi
               value={trip.maxDriveStretchMin ?? 0}
               ariaLabel={t('maxStretch')}
               onCommit={(v) =>
-                void dispatch({
-                  t: 'trip/update',
-                  id: trip.id,
-                  patch: { maxDriveStretchMin: v > 0 ? v : null },
-                  prev: { maxDriveStretchMin: trip.maxDriveStretchMin },
-                })
+                void dispatch(
+                  {
+                    t: 'trip/update',
+                    id: trip.id,
+                    patch: { maxDriveStretchMin: v > 0 ? v : null },
+                    prev: { maxDriveStretchMin: trip.maxDriveStretchMin },
+                  },
+                  db,
+                  { coalesce: true },
+                )
               }
             />
           </label>

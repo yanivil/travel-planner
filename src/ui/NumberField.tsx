@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import { sealHistory } from '../store/ops';
 
 interface Props {
   value: number;
@@ -11,6 +12,9 @@ interface Props {
 // clobber keystrokes. While the field is focused the DOM is driven by a local
 // draft; external (store) updates sync in only when the user isn't typing.
 // Every live-bound numeric input in the app must use this component.
+// #36: commits made while typing coalesce into one undo step; blur seals the
+// chain. sealHistory is imported here — not delegated to callers — so no
+// call site can forget it and silently merge two separate edits.
 export function NumberField({ value, min = 0, ariaLabel, onCommit }: Props) {
   const [draft, setDraft] = useState(String(value));
   const focused = useRef(false);
@@ -30,6 +34,7 @@ export function NumberField({ value, min = 0, ariaLabel, onCommit }: Props) {
       }}
       onBlur={(e) => {
         focused.current = false;
+        sealHistory(); // the typing burst is over — the next edit is a new undo step
         const raw = e.target.value.trim();
         const n = Number(raw);
         // empty/garbage on leave → resync to the committed value

@@ -1,6 +1,6 @@
 import { beforeEach, describe, expect, test } from 'vitest';
 import { createDb, type TiyulDB } from '../db/db';
-import { applyOp, canRedo, canUndo, dispatch, history, invert, redo, resetHistory, undo, type Op } from './ops';
+import { applyOp, canRedo, canUndo, dispatch, history, invert, redo, resetHistory, sealHistory, undo, type Op } from './ops';
 import type { Day, Stop, Trip } from '../domain/types';
 
 let db: TiyulDB;
@@ -190,6 +190,102 @@ describe('undo (D-020: every op is reversible)', () => {
     expect(await db.attachments.count()).toBe(0);
     await applyOp({ t: 'trip/add', trip, days: [], stops: [], dismissals: [], attachments: [attachment] }, db);
     expect(await db.attachments.count()).toBe(1);
+  });
+
+  test('a coalesced keystroke burst is one entry: db holds the last value, one undo restores the first (#36)', async () => {
+    await applyOp({ t: 'trip/add', trip }, db);
+    await applyOp({ t: 'day/add', day }, db);
+    await applyOp({ t: 'stop/add', stop: stop('a', 0) }, db); // durationMin 60
+    const burst = (v: number, prev: number) =>
+      dispatch({ t: 'stop/update', id: 'a', patch: { durationMin: v }, prev: { durationMin: prev } }, db, { coalesce: true });
+
+    await burst(3, 60); // user types "333": 3 → 33 → 333
+    await burst(33, 3);
+    await burst(333, 33);
+
+    expect((await db.stops.get('a'))?.durationMin).toBe(333);
+    expect(history).toHaveLength(1);
+    await undo(db);
+    expect((await db.stops.get('a'))?.durationMin).toBe(60);
+    expect(canUndo()).toBe(false);
+    await redo(db);
+    expect((await db.stops.get('a'))?.durationMin).toBe(333);
+  });
+
+  test('sealHistory ends the burst — the next commit is a separate undo step (#36)', async () => {
+    await applyOp({ t: 'stop/add', stop: stop('a', 0) }, db);
+    await dispatch({ t: 'stop/update', id: 'a', patch: { durationMin: 90 }, prev: { durationMin: 60 } }, db, { coalesce: true });
+    sealHistory(); // NumberField blur
+    await dispatch({ t: 'stop/update', id: 'a', patch: { durationMin: 75 }, prev: { durationMin: 90 } }, db, { coalesce: true });
+
+    expect(history).toHaveLength(2);
+    await undo(db);
+    expect((await db.stops.get('a'))?.durationMin).toBe(90);
+    await undo(db);
+    expect((await db.stops.get('a'))?.durationMin).toBe(60);
+  });
+
+  test('coalescing never crosses fields, entities, multi-key patches, or unrelated ops (#36)', async () => {
+    await applyOp({ t: 'day/add', day }, db);
+    await applyOp({ t: 'stop/add', stop: stop('a', 0) }, db);
+    await applyOp({ t: 'stop/add', stop: stop('b', 1) }, db);
+    const co = { coalesce: true } as const;
+
+    await dispatch({ t: 'stop/update', id: 'a', patch: { durationMin: 90 }, prev: { durationMin: 60 } }, db, co);
+    await dispatch({ t: 'stop/update', id: 'a', patch: { legAfterMin: 10 }, prev: { legAfterMin: null } }, db, co); // other field
+    await dispatch({ t: 'stop/update', id: 'b', patch: { legAfterMin: 20 }, prev: { legAfterMin: null } }, db, co); // other stop
+    await dispatch({ t: 'day/update', id: day.id, patch: { startMin: 500 }, prev: { startMin: 480 } }, db); // unrelated, plain
+    await dispatch({ t: 'stop/update', id: 'b', patch: { legAfterMin: 25 }, prev: { legAfterMin: 20 } }, db, co); // chain was broken
+    await dispatch(
+      { t: 'stop/update', id: 'b', patch: { legAfterMin: 30, durationMin: 45 }, prev: { legAfterMin: 25, durationMin: 60 } },
+      db,
+      co, // multi-key patches are never coalescible
+    );
+
+    expect(history).toHaveLength(6);
+  });
+
+  test('unawaited rapid commits stay in call order — the chain never corrupts (#36)', async () => {
+    // UI sites fire-and-forget (`void dispatch`); two keystrokes = two
+    // in-flight promises. The store queue must serialize them: without it,
+    // apply/push interleave on slow IndexedDB and the merged entry can end
+    // up with the wrong patch or prev (CI-caught race, PR #39).
+    await applyOp({ t: 'stop/add', stop: stop('a', 0) }, db);
+    const co = { coalesce: true } as const;
+    await Promise.all([
+      dispatch({ t: 'stop/update', id: 'a', patch: { durationMin: 3 }, prev: { durationMin: 60 } }, db, co),
+      dispatch({ t: 'stop/update', id: 'a', patch: { durationMin: 33 }, prev: { durationMin: 3 } }, db, co),
+      dispatch({ t: 'stop/update', id: 'a', patch: { durationMin: 333 }, prev: { durationMin: 33 } }, db, co),
+    ]);
+
+    expect((await db.stops.get('a'))?.durationMin).toBe(333);
+    expect(history).toHaveLength(1);
+    const entry = history[0]!;
+    if (entry.t !== 'stop/update') throw new Error('unexpected op type');
+    expect(entry.patch).toEqual({ durationMin: 333 });
+    expect(entry.prev).toEqual({ durationMin: 60 });
+    await undo(db);
+    expect((await db.stops.get('a'))?.durationMin).toBe(60);
+  });
+
+  test('plain dispatches never merge — coalescing is opt-in (#36)', async () => {
+    await applyOp({ t: 'stop/add', stop: stop('a', 0) }, db);
+    await dispatch({ t: 'stop/update', id: 'a', patch: { durationMin: 90 }, prev: { durationMin: 60 } }, db);
+    await dispatch({ t: 'stop/update', id: 'a', patch: { durationMin: 75 }, prev: { durationMin: 90 } }, db);
+    expect(history).toHaveLength(2);
+  });
+
+  test('undo seals the chain — a later burst forks instead of merging into the undone entry (#36)', async () => {
+    await applyOp({ t: 'stop/add', stop: stop('a', 0) }, db);
+    await dispatch({ t: 'stop/update', id: 'a', patch: { durationMin: 90 }, prev: { durationMin: 60 } }, db, { coalesce: true });
+    await undo(db);
+    expect((await db.stops.get('a'))?.durationMin).toBe(60);
+
+    await dispatch({ t: 'stop/update', id: 'a', patch: { durationMin: 75 }, prev: { durationMin: 60 } }, db, { coalesce: true });
+    expect(history).toHaveLength(1);
+    expect(canRedo()).toBe(false); // the new edit forked the timeline
+    await undo(db);
+    expect((await db.stops.get('a'))?.durationMin).toBe(60);
   });
 
   test('acknowledging a conflict is an op: applies, cascades on trip delete, undoes (D-020)', async () => {

@@ -3,7 +3,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import i18n, { setLang } from '../i18n';
 import { db } from '../db/db';
-import { resetHistory } from '../store/ops';
+import { redo, resetHistory, undo } from '../store/ops';
 import type { Day, Stop } from '../domain/types';
 import { DayTimeline } from './DayTimeline';
 
@@ -213,6 +213,35 @@ describe('DayTimeline behavior (tested via the DOM, never internals)', () => {
       () => expect(screen.getByText('The day ends 30 min after the 10:00 curfew')).toBeInTheDocument(),
       { timeout: 3000 },
     );
+  });
+
+  test('a typed numeric burst undoes in fewer steps than keystrokes, exactly to the pre-burst value (#36)', async () => {
+    // Exact one-burst-one-step granularity is a STORE contract, asserted
+    // deterministically in ops.test (incl. seal + concurrency). This DOM test
+    // proves the wiring end-to-end but tolerates ONE chain split: on slow
+    // runners, jsdom fires a spurious React blur between keystrokes (proven
+    // via in-CI instrumentation on PR #39 — real browsers don't do this), and
+    // a spurious blur seals the chain by design. Safety must hold regardless:
+    // undo-to-exhaustion lands exactly on the pre-burst value, never partway.
+    await db.stops.add(stop('a', 0, { name: 'Dinner', durationMin: 150 }));
+    const user = userEvent.setup();
+    render(<DayTimeline dayId={day.id} />);
+    const field = await screen.findByLabelText('Duration (min) — Dinner');
+
+    await user.tripleClick(field); // select-all; first keystroke replaces it
+    await user.keyboard('333'); // three commits: 3 → 33 → 333
+    await user.tab(); // blur seals the burst
+    await waitFor(async () => expect((await db.stops.get('a'))?.durationMin).toBe(333));
+
+    let steps = 0;
+    while (await undo(db)) steps += 1;
+    expect(steps).toBeLessThan(3); // coalesced: 1 normally, 2 if a spurious blur split once
+    expect(steps).toBeGreaterThan(0);
+    await waitFor(async () => expect((await db.stops.get('a'))?.durationMin).toBe(150));
+    expect(await screen.findByDisplayValue('150')).toBeInTheDocument();
+
+    await redo(db);
+    await waitFor(async () => expect((await db.stops.get('a'))?.durationMin).not.toBe(150));
   });
 
   test('opening the details editor and setting a last-entry raises the arrival conflict', async () => {

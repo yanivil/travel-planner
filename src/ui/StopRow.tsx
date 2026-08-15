@@ -4,7 +4,7 @@ import { CSS } from '@dnd-kit/utilities';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { useTranslation } from 'react-i18next';
 import { db } from '../db/db';
-import { dispatch } from '../store/ops';
+import { dispatch, type DispatchOpts } from '../store/ops';
 import { AttachmentRow } from './AttachmentRow';
 import { formatRange, formatHM, parseHM } from '../domain/time';
 import { wazeUrl } from '../domain/waze';
@@ -65,8 +65,8 @@ export function StopRow({ stop, tripId, scheduled, isFirst, isLast, conflictChip
     });
   };
 
-  const updateStop = (patch: Partial<Stop>, prev: Partial<Stop>) =>
-    void dispatch({ t: 'stop/update', id: stop.id, patch, prev });
+  const updateStop = (patch: Partial<Stop>, prev: Partial<Stop>, opts?: DispatchOpts) =>
+    void dispatch({ t: 'stop/update', id: stop.id, patch, prev }, db, opts);
 
   const hoursField = (key: 'openMin' | 'closeMin' | 'lastEntryMin', label: string) => (
     <label>
@@ -140,7 +140,7 @@ export function StopRow({ stop, tripId, scheduled, isFirst, isLast, conflictChip
               <NumberField
                 value={stop.durationMin}
                 ariaLabel={`${t('durationMin')} — ${stop.name}`}
-                onCommit={(v) => updateStop({ durationMin: v }, { durationMin: stop.durationMin })}
+                onCommit={(v) => updateStop({ durationMin: v }, { durationMin: stop.durationMin }, { coalesce: true })}
               />
             </label>
             {!isLast && (
@@ -150,7 +150,7 @@ export function StopRow({ stop, tripId, scheduled, isFirst, isLast, conflictChip
                   value={stop.legAfterMin ?? 0}
                   ariaLabel={`${t('legMin')} — ${stop.name}`}
                   onCommit={(v) =>
-                    updateStop({ legAfterMin: v > 0 ? v : null }, { legAfterMin: stop.legAfterMin })
+                    updateStop({ legAfterMin: v > 0 ? v : null }, { legAfterMin: stop.legAfterMin }, { coalesce: true })
                   }
                 />
               </label>
