@@ -212,42 +212,61 @@ export function sealHistory(): void {
   chain = null;
 }
 
-export async function dispatch(op: Op, target: TiyulDB = db, opts?: DispatchOpts): Promise<void> {
-  await applyOp(op, target);
-  const link = opts?.coalesce ? coalesceLink(op) : null;
-  if (link && chain && chain.key === link.key && history[history.length - 1] === chain.op) {
-    // unbroken same-field chain: fold into the open entry — its prev keeps the
-    // pre-burst value, so a single undo restores what the user started from
-    (chain.op as { patch: CoalescibleOp['patch'] }).patch = link.op.patch;
-    future.length = 0;
+// All mutations run through one queue. UI call sites fire-and-forget
+// (`void dispatch(...)`), so two fast keystrokes are two in-flight promises;
+// without serialization their apply/push steps can interleave on a slow
+// IndexedDB and corrupt history order — with coalescing, corrupt the open
+// chain itself (caught by CI on PR #39). The queue makes history order equal
+// call order, deterministically, with no timers.
+let queue: Promise<unknown> = Promise.resolve();
+function enqueue<T>(job: () => Promise<T>): Promise<T> {
+  const run = queue.then(job);
+  queue = run.catch(() => undefined); // a failed job must not wedge the queue
+  return run;
+}
+
+export function dispatch(op: Op, target: TiyulDB = db, opts?: DispatchOpts): Promise<void> {
+  return enqueue(async () => {
+    await applyOp(op, target);
+    const link = opts?.coalesce ? coalesceLink(op) : null;
+    if (link && chain && chain.key === link.key && history[history.length - 1] === chain.op) {
+      // unbroken same-field chain: fold into the open entry — its prev keeps the
+      // pre-burst value, so a single undo restores what the user started from
+      (chain.op as { patch: CoalescibleOp['patch'] }).patch = link.op.patch;
+      future.length = 0;
+      notify();
+      return;
+    }
+    history.push(op);
+    if (history.length > HISTORY_CAP) history.shift();
+    future.length = 0; // a new edit forks the timeline — redo history dies
+    chain = link;
     notify();
-    return;
-  }
-  history.push(op);
-  if (history.length > HISTORY_CAP) history.shift();
-  future.length = 0; // a new edit forks the timeline — redo history dies
-  chain = link;
-  notify();
+  });
 }
 
 /** Undoes the latest op; returns it (for the toast) or null when empty. */
-export async function undo(target: TiyulDB = db): Promise<Op | null> {
-  const op = history.pop();
-  if (!op) return null;
-  chain = null; // history navigation is a chain boundary
-  await applyOp(invert(op), target);
-  future.push(op);
-  notify();
-  return op;
+export function undo(target: TiyulDB = db): Promise<Op | null> {
+  return enqueue(async () => {
+    const op = history.pop();
+    if (!op) return null;
+    chain = null; // history navigation is a chain boundary
+    await applyOp(invert(op), target);
+    future.push(op);
+    notify();
+    return op;
+  });
 }
 
 /** Re-applies the latest undone op; returns it or null when empty. */
-export async function redo(target: TiyulDB = db): Promise<Op | null> {
-  const op = future.pop();
-  if (!op) return null;
-  chain = null; // history navigation is a chain boundary
-  await applyOp(op, target);
-  history.push(op);
-  notify();
-  return op;
+export function redo(target: TiyulDB = db): Promise<Op | null> {
+  return enqueue(async () => {
+    const op = future.pop();
+    if (!op) return null;
+    chain = null; // history navigation is a chain boundary
+    await applyOp(op, target);
+    history.push(op);
+    notify();
+    return op;
+  });
 }

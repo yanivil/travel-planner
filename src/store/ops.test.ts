@@ -245,6 +245,29 @@ describe('undo (D-020: every op is reversible)', () => {
     expect(history).toHaveLength(6);
   });
 
+  test('unawaited rapid commits stay in call order — the chain never corrupts (#36)', async () => {
+    // UI sites fire-and-forget (`void dispatch`); two keystrokes = two
+    // in-flight promises. The store queue must serialize them: without it,
+    // apply/push interleave on slow IndexedDB and the merged entry can end
+    // up with the wrong patch or prev (CI-caught race, PR #39).
+    await applyOp({ t: 'stop/add', stop: stop('a', 0) }, db);
+    const co = { coalesce: true } as const;
+    await Promise.all([
+      dispatch({ t: 'stop/update', id: 'a', patch: { durationMin: 3 }, prev: { durationMin: 60 } }, db, co),
+      dispatch({ t: 'stop/update', id: 'a', patch: { durationMin: 33 }, prev: { durationMin: 3 } }, db, co),
+      dispatch({ t: 'stop/update', id: 'a', patch: { durationMin: 333 }, prev: { durationMin: 33 } }, db, co),
+    ]);
+
+    expect((await db.stops.get('a'))?.durationMin).toBe(333);
+    expect(history).toHaveLength(1);
+    const entry = history[0]!;
+    if (entry.t !== 'stop/update') throw new Error('unexpected op type');
+    expect(entry.patch).toEqual({ durationMin: 333 });
+    expect(entry.prev).toEqual({ durationMin: 60 });
+    await undo(db);
+    expect((await db.stops.get('a'))?.durationMin).toBe(60);
+  });
+
   test('plain dispatches never merge — coalescing is opt-in (#36)', async () => {
     await applyOp({ t: 'stop/add', stop: stop('a', 0) }, db);
     await dispatch({ t: 'stop/update', id: 'a', patch: { durationMin: 90 }, prev: { durationMin: 60 } }, db);

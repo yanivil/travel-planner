@@ -224,6 +224,10 @@ describe('DayTimeline behavior (tested via the DOM, never internals)', () => {
     await user.clear(field);
     await user.type(field, '90'); // two keystrokes: 9 → 90
     await user.tab(); // blur seals the burst
+    // wait for the liveQuery echo before the next burst: its `prev` is read
+    // from the rendered prop, so the second entry must see 90, not stale 150
+    // (CI-caught race, PR #39 — event-driven wait, no sleeps)
+    await screen.findByDisplayValue('90');
     await user.clear(field); // second, separate burst
     await user.type(field, '75');
     await user.tab();
