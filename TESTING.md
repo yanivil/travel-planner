@@ -66,6 +66,7 @@ Design docs (this file) define *what must be true*; each feature PR carries the 
 
 Playwright cannot fully cover our offline story; we plan around it instead of discovering it later:
 
+- **jsdom fires spurious React blur events mid-typing on slow runners** (proven by in-CI instrumentation, PR #39; real browsers don't). Anything keyed to focus sessions — e.g., the undo-coalescing seal-on-blur — must have its exact granularity asserted at the **store** level; DOM tests assert wiring/safety and tolerate one chain split.
 - **SW support is Chromium-only** in Playwright — WebKit/Firefox service-worker behavior (i.e. real iOS Safari) is untestable in CI. Mitigation: a **manual iOS device checklist** per release — install to home screen, `persist()` granted, airplane-mode walk-through of E2E-2, large-bundle load.
 - **`context.setOffline(true)` does not reliably fail SW-originated fetches** and fires no `online/offline` events. Offline specs therefore follow the proven pattern: fresh context → wait for an **app-exposed readiness signal** (SW activated + precache complete) → `setOffline(true)` → reload → assert; plus a separate cold-start-offline spec asserting graceful behavior.
 - **All non-offline suites run with `serviceWorkers: 'block'`** so caching never makes other tests nondeterministic.
